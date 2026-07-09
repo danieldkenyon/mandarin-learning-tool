@@ -298,7 +298,7 @@
   <!-- SPEAK -->
   <section id="speak" class="view">
     <h2>Speaking practice</h2>
-    <p class="sub">Listen to the word, then record yourself — your speech is transcribed by the browser's Chinese recognizer and scored against the target, character by character. Works best in Chrome/Edge (needs mic + internet). Your recording is playable so you can compare with the native audio.</p>
+    <p class="sub">Listen to the word, then record yourself — your speech is transcribed and scored against the target, character by character. Chrome/Edge use the built-in recognizer; Arc, Brave and Safari automatically switch to an on-device AI model (one-time download, then cached — your voice never leaves your machine). Your recording is playable so you can compare with the native audio.</p>
     <div id="speakBanner"></div>
     <div class="row-actions">
       <select id="speakLesson" class="btn ghost" onchange="renderSpeakChips()"></select>
@@ -932,6 +932,10 @@ function renderSpeakCard() {
   let resultHtml = '';
   if (speakState === 'listening') {
     resultHtml = `<p class="heard">🎙 Listening… say it now!</p>`;
+  } else if (speakState === 'loading') {
+    resultHtml = `<p class="heard">⏳ ${whisperProgress || 'Loading the speech model…'}</p>`;
+  } else if (speakState === 'analyzing') {
+    resultHtml = `<p class="heard">🤔 Analyzing your pronunciation…</p>`;
   } else if (speakError) {
     resultHtml = `<p class="heard" style="color:var(--accent-2);max-width:420px;margin:10px auto 0">${speakError}</p>` +
       (speakErrCode === 'network' || speakErrCode === 'no-sr'
@@ -951,24 +955,19 @@ function renderSpeakCard() {
       <div style="color:var(--muted)">${w.en}</div>
       <p style="margin:18px 0 8px">
         <button class="btn ghost" onclick="speak('${w.hz}')">🔊 Listen</button>
-        <button class="rec-btn ${speakState === 'listening' ? 'listening' : ''}" onclick="startAttempt()" ${speakState === 'listening' ? 'disabled' : ''}>
-          ${speakState === 'listening' ? '🎙 Listening…' : '🎤 Record & grade'}</button>
+        <button class="rec-btn ${speakState === 'listening' ? 'listening' : ''}" onclick="startAttempt()" ${speakState !== 'idle' ? 'disabled' : ''}>
+          ${speakState === 'listening' ? '🎙 Listening…' : speakState === 'loading' ? '⏳ Loading model…' : speakState === 'analyzing' ? '🤔 Analyzing…' : '🎤 Record & grade'}</button>
       </p>
       ${lastAudioURL ? `<p><audio controls src="${lastAudioURL}"></audio></p>` : ''}
       ${resultHtml}
-      ${window.self !== window.top && !speakResult && !speakError && speakState === 'idle' ? `<p class="heard">ℹ️ Viewing inside an embedded preview? Mic prompts are often blocked there — open <b>http://localhost:4599</b> in a normal Chrome tab for recording.</p>` : ''}
+      ${window.self !== window.top && !speakResult && !speakError && speakState === 'idle' ? `<p class="heard">ℹ️ Viewing inside an embedded preview? Mic prompts are often blocked there — open the app in a normal browser tab for recording.</p>` : ''}
       ${best != null ? `<p class="heard">Best score for this word: <b>${best}%</b></p>` : ''}
       ${speakDay != null ? `<p><button class="btn ghost" onclick="nextDailySpeakTarget()">Next word ↷</button></p>` : ''}
     </div>`;
 }
 
 function startAttempt() {
-  if (!SR) {
-    speakErrCode = 'no-sr';
-    speakError = "This browser has no speech recognizer — open this page in <b>Google Chrome</b> or <b>Microsoft Edge</b> for pronunciation grading. You can still record yourself and compare by ear:";
-    renderSpeakCard();
-    return;
-  }
+  if (!SR || store.asrEngine === 'whisper') return whisperAttempt();
   speakResult = null; speakError = null; speakErrCode = null; lastAudioURL = null; speakState = 'listening';
   renderSpeakCard();
   startRecorder();                       // best-effort; runs alongside recognition
@@ -982,6 +981,13 @@ function startAttempt() {
   r.onend = () => {
     stopRecorder();
     if (!got && speakState === 'listening') {
+      if (errCode === 'network') {
+        // Arc/Brave look like Chrome but block Google's speech backend —
+        // switch permanently to the on-device model and retry.
+        store.asrEngine = 'whisper'; saveStore();
+        whisperAttempt();
+        return;
+      }
       speakState = 'idle';
       speakErrCode = errCode;
       speakError = srErrorMessage(errCode);
@@ -993,6 +999,96 @@ function startAttempt() {
     speakError = 'Could not start the recognizer — reload the page and try again.';
     renderSpeakCard();
   }
+}
+
+/* ---- On-device recognizer (Whisper via transformers.js) for browsers
+   that block the native one (Arc, Brave, Safari). The model downloads
+   once (~80 MB), is cached by the browser, and runs locally. ---- */
+let whisper = null, whisperLoading = null, whisperProgress = '';
+
+function loadWhisper() {
+  if (!whisperLoading) {
+    whisperLoading = (async () => {
+      speakState = 'loading';
+      whisperProgress = 'Loading the on-device speech model…';
+      renderSpeakCard();
+      const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/dist/transformers.min.js');
+      const progress_callback = p => {
+        if (p.status === 'progress' && p.progress != null && speakState === 'loading') {
+          whisperProgress = `Downloading the speech model — ${Math.round(p.progress)}% (one-time; cached for next time)`;
+          renderSpeakCard();
+        }
+      };
+      try {
+        whisper = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', { device: 'webgpu', progress_callback });
+      } catch (e) {
+        whisper = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base', { progress_callback });
+      }
+      return whisper;
+    })().catch(e => { whisperLoading = null; throw e; });
+  }
+  return whisperLoading;
+}
+
+async function whisperAttempt() {
+  try {
+    await loadWhisper();
+  } catch (e) {
+    speakState = 'idle'; speakErrCode = 'no-sr';
+    speakError = "Couldn't load the on-device speech model — check your internet connection and reload the page. You can still record yourself and compare by ear:";
+    renderSpeakCard();
+    return;
+  }
+  speakResult = null; speakError = null; speakErrCode = null; lastAudioURL = null;
+  speakState = 'listening';
+  renderSpeakCard();
+  const ok = await startRecorder();
+  if (!ok) {
+    speakState = 'idle'; speakErrCode = 'not-allowed';
+    speakError = srErrorMessage('not-allowed');
+    renderSpeakCard();
+    return;
+  }
+  await new Promise(r => setTimeout(r, 3200));   // fixed 3-second take
+  const blob = await stopRecorderGetBlob();
+  if (!blob || blob.size < 1000) {
+    speakState = 'idle'; speakErrCode = 'no-speech';
+    speakError = srErrorMessage('no-speech');
+    renderSpeakCard();
+    return;
+  }
+  speakState = 'analyzing';
+  renderSpeakCard();
+  try {
+    const pcm = await blobToPCM(blob);
+    const out = await whisper(pcm, { language: 'chinese', task: 'transcribe' });
+    gradeAttempt([(out && out.text) || '']);
+  } catch (e) {
+    speakState = 'idle';
+    speakError = 'Analysis failed — try recording again.';
+    renderSpeakCard();
+  }
+}
+
+function stopRecorderGetBlob() {
+  return new Promise(res => {
+    if (!recorder || recorder.state !== 'recording') return res(null);
+    recorder.onstop = () => {
+      const blob = new Blob(recChunks, { type: recorder.mimeType });
+      if (blob.size > 1000) lastAudioURL = URL.createObjectURL(blob);
+      recStream.getTracks().forEach(t => t.stop());
+      res(blob);
+    };
+    recorder.stop();
+  });
+}
+async function blobToPCM(blob) {
+  const buf = await blob.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  const decoded = await ctx.decodeAudioData(buf);
+  const data = decoded.getChannelData(0);
+  ctx.close();
+  return data;
 }
 function srErrorMessage(code) {
   switch (code) {
