@@ -883,7 +883,7 @@ function startDailyQuiz(n) {
    the same attempt so you can replay yourself.
    ============================================================ */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let speakTarget = null, speakDay = null, speakState = 'idle', speakResult = null, speakError = null, lastAudioURL = null;
+let speakTarget = null, speakDay = null, speakState = 'idle', speakResult = null, speakError = null, speakErrCode = null, lastAudioURL = null;
 let recStream = null, recorder = null, recChunks = [];
 
 function renderSpeakChips() {
@@ -933,7 +933,9 @@ function renderSpeakCard() {
   if (speakState === 'listening') {
     resultHtml = `<p class="heard">🎙 Listening… say it now!</p>`;
   } else if (speakError) {
-    resultHtml = `<p class="heard" style="color:var(--accent-2);max-width:420px;margin:10px auto 0">${speakError}</p>`;
+    resultHtml = `<p class="heard" style="color:var(--accent-2);max-width:420px;margin:10px auto 0">${speakError}</p>` +
+      (speakErrCode === 'network' || speakErrCode === 'no-sr'
+        ? `<p><button class="btn ghost" onclick="recordOnly()">🎙 Record only (no grading)</button></p>` : '');
   } else if (speakResult) {
     const r = speakResult;
     resultHtml = `
@@ -962,11 +964,12 @@ function renderSpeakCard() {
 
 function startAttempt() {
   if (!SR) {
-    speakError = "This browser has no speech recognizer — open the app in Chrome or Edge for pronunciation grading. Recording your voice anyway so you can compare by ear…";
+    speakErrCode = 'no-sr';
+    speakError = "This browser has no speech recognizer — open this page in <b>Google Chrome</b> or <b>Microsoft Edge</b> for pronunciation grading. You can still record yourself and compare by ear:";
     renderSpeakCard();
-    return recordOnly();
+    return;
   }
-  speakResult = null; speakError = null; lastAudioURL = null; speakState = 'listening';
+  speakResult = null; speakError = null; speakErrCode = null; lastAudioURL = null; speakState = 'listening';
   renderSpeakCard();
   startRecorder();                       // best-effort; runs alongside recognition
   const r = new SR();
@@ -980,6 +983,7 @@ function startAttempt() {
     stopRecorder();
     if (!got && speakState === 'listening') {
       speakState = 'idle';
+      speakErrCode = errCode;
       speakError = srErrorMessage(errCode);
       renderSpeakCard();
     }
@@ -995,13 +999,13 @@ function srErrorMessage(code) {
     case 'not-allowed':
     case 'service-not-allowed':
       return "🎙 Microphone access is blocked. Click the mic/lock icon in the address bar and allow it" +
-        (window.self !== window.top ? ", or open <b>http://localhost:4599</b> in a normal Chrome tab — embedded previews usually block the mic." : ", then try again.");
+        (window.self !== window.top ? ", or open the app in a normal Chrome tab — embedded previews usually block the mic." : ", then try again.");
     case 'no-speech':
       return "Didn't hear anything — get closer to the mic, speak a little louder, and try again.";
     case 'audio-capture':
       return "No microphone was found on this device.";
     case 'network':
-      return "The speech service couldn't be reached — check your internet connection and try again.";
+      return "The speech service couldn't be reached. If you're online, this browser is likely the cause — <b>Arc, Brave and most non-Chrome browsers block Google's speech backend</b>, even though they look like Chrome. Open this page in <b>Google Chrome</b> or <b>Microsoft Edge</b> for grading, or record yourself and compare by ear:";
     default:
       return "Recognition stopped" + (code ? " (" + code + ")" : "") + " — try again.";
   }
@@ -1014,17 +1018,33 @@ async function startRecorder() {
     recorder = new MediaRecorder(recStream);
     recorder.ondataavailable = e => recChunks.push(e.data);
     recorder.onstop = () => {
-      lastAudioURL = URL.createObjectURL(new Blob(recChunks, { type: recorder.mimeType }));
+      const blob = new Blob(recChunks, { type: recorder.mimeType });
+      if (blob.size > 1000) lastAudioURL = URL.createObjectURL(blob);  // skip empty recordings
       recStream.getTracks().forEach(t => t.stop());
       renderSpeakCard();
     };
     recorder.start();
-  } catch (e) { /* mic denied — recognition-based grading still works */ }
+    return true;
+  } catch (e) { return false; }  // mic denied — recognition-based grading may still work
 }
 function stopRecorder() { if (recorder && recorder.state === 'recording') recorder.stop(); }
-function recordOnly() {
-  speakState = 'listening'; renderSpeakCard();
-  startRecorder().then(() => setTimeout(() => { stopRecorder(); speakState = 'idle'; renderSpeakCard(); }, 4000));
+async function recordOnly() {
+  const prevError = speakError, prevCode = speakErrCode;   // restore the browser-support hint afterwards
+  speakResult = null; speakError = null; lastAudioURL = null; speakState = 'listening';
+  renderSpeakCard();
+  const ok = await startRecorder();
+  if (!ok) {
+    speakState = 'idle'; speakErrCode = 'not-allowed';
+    speakError = srErrorMessage('not-allowed');
+    renderSpeakCard();
+    return;
+  }
+  setTimeout(() => {
+    stopRecorder();
+    speakState = 'idle';
+    speakError = prevError; speakErrCode = prevCode;
+    renderSpeakCard();
+  }, 3500);
 }
 
 function normHz(s) { return (s || '').replace(/[^一-鿿]/g, ''); }
