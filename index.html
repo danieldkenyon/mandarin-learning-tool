@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汉语 · Mandarin Learning Tool</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #1a1e33;
+    --panel-2: #232948;
+    --text: #eef1ff;
+    --muted: #9aa3c7;
+    --accent: #ff5a5f;
+    --accent-2: #ffb703;
+    --green: #3ddc84;
+    --border: #2c3355;
+    /* Tone colors (Pleco / Hanping convention) */
+    --t1: #e63946; /* first tone  - flat  */
+    --t2: #2a9d8f; /* second tone - rising */
+    --t3: #457b9d; /* third tone  - dip   */
+    --t4: #9b5de5; /* fourth tone - fall  */
+    --t5: #8d99ae; /* neutral            */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #202744 0, transparent 60%), var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: rgba(15,18,32,.85); backdrop-filter: blur(10px); z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand h1 { font-size: 20px; margin: 0; letter-spacing: .5px; }
+  .brand .zh { font-size: 26px; color: var(--accent-2); }
+  .streak { font-size: 14px; color: var(--muted); }
+  .streak b { color: var(--accent-2); }
+
+  nav {
+    display: flex; gap: 6px; padding: 12px 24px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 61px; background: rgba(15,18,32,.85); backdrop-filter: blur(10px); z-index: 19;
+  }
+  nav button {
+    background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 14px; font-weight: 600;
+    transition: .15s;
+  }
+  nav button:hover { color: var(--text); border-color: var(--accent); }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  h2 { margin: 0 0 4px; font-size: 24px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+
+  /* Lesson list */
+  .lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 16px; }
+  .lesson-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px;
+    cursor: pointer; transition: .18s; position: relative; overflow: hidden;
+  }
+  .lesson-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .lesson-card .emoji { font-size: 34px; }
+  .lesson-card h3 { margin: 10px 0 2px; font-size: 18px; }
+  .lesson-card p { margin: 0; color: var(--muted); font-size: 13px; }
+  .lesson-card .bar { height: 6px; background: var(--panel-2); border-radius: 999px; margin-top: 14px; overflow: hidden; }
+  .lesson-card .bar span { display: block; height: 100%; background: linear-gradient(90deg,var(--green),var(--accent-2)); width: 0; transition: width .4s; }
+  .lesson-card .count { position: absolute; top: 16px; right: 16px; font-size: 12px; color: var(--muted); }
+
+  /* Vocab rows */
+  .word-row {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .word-row .hanzi { font-size: 34px; min-width: 90px; }
+  .word-row .info { flex: 1; }
+  .word-row .pinyin { font-size: 18px; font-weight: 700; }
+  .word-row .en { color: var(--muted); font-size: 14px; }
+  .word-row .actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    width: 42px; height: 42px; border-radius: 12px; cursor: pointer; font-size: 18px; transition: .15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+  .icon-btn.learned { background: var(--green); color: #06210f; border-color: var(--green); }
+
+  .back-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px;
+    margin-bottom: 14px; padding: 0;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* Tone color helper */
+  .tone1 { color: var(--t1); } .tone2 { color: var(--t2); }
+  .tone3 { color: var(--t3); } .tone4 { color: var(--t4); } .tone5 { color: var(--t5); }
+
+  .row-actions { display:flex; gap:10px; margin: 8px 0 20px; flex-wrap: wrap; }
+  .btn {
+    background: var(--accent); color: #fff; border: none; padding: 10px 18px; border-radius: 12px;
+    font-weight: 700; cursor: pointer; font-size: 14px; transition: .15s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+  .btn.ghost:hover { border-color: var(--accent); }
+
+  /* Flashcard */
+  .flash-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .flashcard {
+    width: 100%; max-width: 420px; height: 300px; perspective: 1200px; cursor: pointer;
+  }
+  .flash-inner { position: relative; width: 100%; height: 100%; transition: transform .5s; transform-style: preserve-3d; }
+  .flashcard.flipped .flash-inner { transform: rotateY(180deg); }
+  .flash-face {
+    position: absolute; inset: 0; backface-visibility: hidden; border-radius: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border); padding: 20px; text-align: center;
+  }
+  .flash-face.back { transform: rotateY(180deg); background: var(--panel-2); }
+  .flash-face .big { font-size: 72px; }
+  .flash-face .pinyin { font-size: 26px; font-weight: 700; }
+  .flash-face .en { font-size: 20px; color: var(--muted); }
+  .flash-hint { color: var(--muted); font-size: 13px; }
+  .flash-controls { display: flex; gap: 12px; }
+  .progress-line { color: var(--muted); font-size: 14px; }
+
+  /* Quiz */
+  .quiz-q { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 30px; text-align: center; margin-bottom: 18px; }
+  .quiz-q .big { font-size: 64px; }
+  .quiz-q .prompt { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .option {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+    cursor: pointer; font-size: 16px; text-align: center; transition: .12s;
+  }
+  .option:hover { border-color: var(--accent); }
+  .option.correct { background: var(--green); color: #06210f; border-color: var(--green); }
+  .option.wrong { background: #5a1f22; border-color: var(--accent); }
+  .quiz-score { text-align: center; font-size: 15px; color: var(--muted); margin-top: 4px; }
+
+  /* Progress / stats */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; text-align: center;
+  }
+  .stat .num { font-size: 36px; font-weight: 800; color: var(--accent-2); }
+  .stat .label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .prog-lesson { display:flex; align-items:center; gap: 12px; margin-bottom: 12px; }
+  .prog-lesson .name { flex: 0 0 160px; }
+  .prog-lesson .bar { flex: 1; height: 10px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .prog-lesson .bar span { display:block; height:100%; background: linear-gradient(90deg,var(--green),var(--accent-2)); }
+  .prog-lesson .pct { flex: 0 0 46px; text-align: right; color: var(--muted); font-size: 13px; }
+  .danger { background: none; border: 1px solid var(--accent); color: var(--accent); padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; }
+
+  .tone-legend { display:flex; gap:14px; flex-wrap: wrap; margin: 4px 0 20px; font-size: 13px; }
+  .tone-legend span { display:flex; align-items:center; gap:6px; color: var(--muted); }
+  .tone-legend .dot { width: 12px; height: 12px; border-radius: 3px; display:inline-block; }
+
+  /* Daily lessons */
+  .exam-box { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px 16px; margin-bottom:18px; font-size:14px; flex-wrap:wrap; }
+  .exam-box input { background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; font-family:inherit; color-scheme: dark; }
+  .exam-box .left { color: var(--accent-2); font-weight:700; }
+  .day-card { background:var(--panel); border:1px solid var(--border); border-radius:18px; padding:20px; margin-bottom:16px; }
+  .day-card .word-row { background: var(--panel-2); }
+  .day-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .day-head h3 { margin:0; font-size:20px; }
+  .day-nav { display:flex; gap:8px; }
+  .day-nav button { background:var(--panel-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:6px 12px; cursor:pointer; }
+  .day-nav button:disabled { opacity:.35; cursor:not-allowed; }
+  .badge { font-size:12px; padding:4px 10px; border-radius:999px; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); }
+  .badge.done { background:var(--green); color:#06210f; border-color:var(--green); }
+  .task-row { display:flex; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-top:10px; }
+  .task-row .tick { width:26px; height:26px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:14px; flex:0 0 26px; }
+  .task-row.done .tick { background:var(--green); border-color:var(--green); color:#06210f; }
+  .task-row .t-label { flex:1; font-size:14px; }
+  .task-row.done .t-label { color:var(--muted); text-decoration:line-through; }
+  .lock-note { text-align:center; color:var(--muted); padding:30px; }
+
+  /* Speaking practice */
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+  .chip { background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:999px; padding:8px 14px; cursor:pointer; font-size:15px; }
+  .chip:hover { border-color:var(--accent); }
+  .chip.scored { border-color:var(--green); }
+  .speak-card { background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:26px; text-align:center; }
+  .speak-card .big { font-size:64px; }
+  .rec-btn { background:var(--accent); color:#fff; border:none; border-radius:14px; padding:14px 22px; font-size:16px; font-weight:700; cursor:pointer; }
+  .rec-btn.listening { animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 rgba(255,90,95,.55); } 50% { box-shadow:0 0 0 14px rgba(255,90,95,0); } }
+  .score-big { font-size:44px; font-weight:800; }
+  .score-bar { height:12px; background:var(--panel-2); border-radius:999px; overflow:hidden; max-width:320px; margin:8px auto; }
+  .score-bar span { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2),var(--green)); }
+  .char-marks { font-size:34px; letter-spacing:4px; margin-top:6px; }
+  .char-marks .ok { color:var(--green); }
+  .char-marks .miss { color:var(--accent); }
+  .heard { color:var(--muted); font-size:14px; margin-top:6px; }
+
+  footer { text-align:center; color: var(--muted); font-size: 12px; padding: 30px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px; }
+  /* Pinyin typing */
+  .type-input {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 12px; padding: 12px 16px; font-size: 18px; width: 100%; max-width: 320px;
+    text-align: center; font-family: inherit; outline: none;
+  }
+  .type-input:focus { border-color: var(--accent); }
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="zh">汉语</span>
+    <h1>Mandarin Learning Tool</h1>
+  </div>
+  <div class="streak">🔥 Streak: <b id="streakCount">0</b> day(s)</div>
+</header>
+
+<nav>
+  <button data-view="daily" class="active">🎯 Daily</button>
+  <button data-view="lessons">📚 Lessons</button>
+  <button data-view="flash">🃏 Flashcards</button>
+  <button data-view="quiz">✍️ Quiz</button>
+  <button data-view="speak">🎤 Speak</button>
+  <button data-view="type">⌨️ Type</button>
+  <button data-view="progress">📊 Progress</button>
+</nav>
+
+<main>
+  <!-- DAILY -->
+  <section id="daily" class="view active">
+    <h2>Daily lesson</h2>
+    <p class="sub">One bite-sized lesson per day on the road to your exam: learn the new words, pass a mini-quiz, and nail the pronunciation. A new day unlocks every calendar day — consistency beats cramming.</p>
+    <div class="exam-box">
+      🎓 Exam date:
+      <input type="date" id="examDateInput" onchange="setExamDate(this.value)">
+      <span id="examCountdown"></span>
+    </div>
+    <div id="dailyArea"></div>
+  </section>
+
+  <!-- LESSONS -->
+  <section id="lessons" class="view">
+    <h2>Lessons</h2>
+    <p class="sub">Pick a topic. Tap 🔊 to hear pronunciation, tap ✓ to mark a word learned. Pinyin is colored by tone.</p>
+    <div class="tone-legend">
+      <span><i class="dot" style="background:var(--t1)"></i>1st (flat)</span>
+      <span><i class="dot" style="background:var(--t2)"></i>2nd (rising)</span>
+      <span><i class="dot" style="background:var(--t3)"></i>3rd (dip)</span>
+      <span><i class="dot" style="background:var(--t4)"></i>4th (falling)</span>
+      <span><i class="dot" style="background:var(--t5)"></i>neutral</span>
+    </div>
+    <div id="lessonGrid" class="lesson-grid"></div>
+  </section>
+
+  <!-- LESSON DETAIL -->
+  <section id="lessonDetail" class="view">
+    <button class="back-btn" onclick="showView('lessons')">← All lessons</button>
+    <h2 id="ldTitle"></h2>
+    <p class="sub" id="ldSub"></p>
+    <div class="row-actions">
+      <button class="btn" onclick="playLesson()">🔊 Play all</button>
+      <button class="btn ghost" onclick="markLessonLearned()">✓ Mark all learned</button>
+    </div>
+    <div id="wordList"></div>
+  </section>
+
+  <!-- FLASHCARDS -->
+  <section id="flash" class="view">
+    <h2>Flashcards</h2>
+    <p class="sub">Study any lesson as a deck. Click the card to flip. Rate yourself to track what you know.</p>
+    <div class="row-actions">
+      <select id="flashLesson" class="btn ghost"></select>
+      <button class="btn" onclick="startFlash()">Start deck</button>
+    </div>
+    <div id="flashArea"></div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="view">
+    <h2>Quiz</h2>
+    <p class="sub">Multiple choice — match the character to its meaning. 10 questions.</p>
+    <div class="row-actions">
+      <select id="quizLesson" class="btn ghost"></select>
+      <button class="btn" onclick="startQuiz()">Start quiz</button>
+    </div>
+    <div id="quizArea"></div>
+  </section>
+
+  <!-- SPEAK -->
+  <section id="speak" class="view">
+    <h2>Speaking practice</h2>
+    <p class="sub">Listen to the word, then record yourself — your speech is transcribed by the browser's Chinese recognizer and scored against the target, character by character. Works best in Chrome/Edge (needs mic + internet). Your recording is playable so you can compare with the native audio.</p>
+    <div id="speakBanner"></div>
+    <div class="row-actions">
+      <select id="speakLesson" class="btn ghost" onchange="renderSpeakChips()"></select>
+    </div>
+    <div id="speakChips" class="chips"></div>
+    <div id="speakCard"></div>
+  </section>
+
+  <!-- TYPE -->
+  <section id="type" class="view">
+    <h2>Pinyin typing</h2>
+    <p class="sub">See the characters, type the pinyin with tone numbers — e.g. 你好 → <b>ni3 hao3</b> (spaces optional). Neutral tone is 5 (or 0), type <b>v</b> for ü. Right sounds + right tones = 100%; right sounds, wrong or missing tones = 50%.</p>
+    <div id="typeBanner"></div>
+    <div class="row-actions">
+      <select id="typeLesson" class="btn ghost"></select>
+      <button class="btn" onclick="startTypeDeck()">Start practice</button>
+    </div>
+    <div id="typeArea"></div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progress" class="view">
+    <h2>Your progress</h2>
+    <p class="sub">Everything is saved in your browser (localStorage) — no account needed.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="num" id="statWords">0</div><div class="label">Words learned</div></div>
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="label">Total words</div></div>
+      <div class="stat"><div class="num" id="statLessons">0</div><div class="label">Lessons complete</div></div>
+      <div class="stat"><div class="num" id="statStreak">0</div><div class="label">Day streak</div></div>
+      <div class="stat"><div class="num" id="statQuiz">—</div><div class="label">Best quiz score</div></div>
+      <div class="stat"><div class="num" id="statDays">0</div><div class="label">Daily lessons done</div></div>
+      <div class="stat"><div class="num" id="statSpeak">0</div><div class="label">Words spoken at 80%+</div></div>
+      <div class="stat"><div class="num" id="statType">0</div><div class="label">Pinyin typed at 100%</div></div>
+    </div>
+    <h3>By lesson</h3>
+    <div id="progList"></div>
+    <div style="margin-top:24px">
+      <button class="danger" onclick="resetProgress()">Reset all progress</button>
+    </div>
+  </section>
+</main>
+
+<footer>Made with ❤️ for learning Mandarin · Pronunciation uses your browser's Web Speech API (Chrome/Edge/Safari)</footer>
+
+<script>
+/* ============================================================
+   DATA — lessons & vocabulary
+   pinyin: with tone marks. tones: array of tone numbers per syllable
+   (used to color-code the pinyin). speak: text sent to speech engine.
+   ============================================================ */
+const LESSONS = [
+  { id: "greetings", name: "Greetings", emoji: "👋", desc: "Say hello, thanks & goodbye",
+    words: [
+      { hz: "你好", py: "nǐ hǎo", t: [3,3], en: "Hello" },
+      { hz: "你好吗", py: "nǐ hǎo ma", t: [3,3,5], en: "How are you?" },
+      { hz: "我很好", py: "wǒ hěn hǎo", t: [3,3,3], en: "I'm fine" },
+      { hz: "谢谢", py: "xièxie", t: [4,5], en: "Thank you" },
+      { hz: "不客气", py: "bú kèqi", t: [2,4,5], en: "You're welcome" },
+      { hz: "对不起", py: "duìbuqǐ", t: [4,5,3], en: "Sorry" },
+      { hz: "没关系", py: "méi guānxi", t: [2,1,5], en: "It's okay" },
+      { hz: "再见", py: "zàijiàn", t: [4,4], en: "Goodbye" },
+      { hz: "早上好", py: "zǎoshang hǎo", t: [3,5,3], en: "Good morning" },
+      { hz: "晚安", py: "wǎn'ān", t: [3,1], en: "Good night" },
+    ]},
+  { id: "numbers", name: "Numbers 1–10", emoji: "🔢", desc: "Count from one to ten",
+    words: [
+      { hz: "一", py: "yī", t: [1], en: "One" },
+      { hz: "二", py: "èr", t: [4], en: "Two" },
+      { hz: "三", py: "sān", t: [1], en: "Three" },
+      { hz: "四", py: "sì", t: [4], en: "Four" },
+      { hz: "五", py: "wǔ", t: [3], en: "Five" },
+      { hz: "六", py: "liù", t: [4], en: "Six" },
+      { hz: "七", py: "qī", t: [1], en: "Seven" },
+      { hz: "八", py: "bā", t: [1], en: "Eight" },
+      { hz: "九", py: "jiǔ", t: [3], en: "Nine" },
+      { hz: "十", py: "shí", t: [2], en: "Ten" },
+    ]},
+  { id: "family", name: "Family", emoji: "👨‍👩‍👧", desc: "Members of the family",
+    words: [
+      { hz: "妈妈", py: "māma", t: [1,5], en: "Mom" },
+      { hz: "爸爸", py: "bàba", t: [4,5], en: "Dad" },
+      { hz: "哥哥", py: "gēge", t: [1,5], en: "Older brother" },
+      { hz: "姐姐", py: "jiějie", t: [3,5], en: "Older sister" },
+      { hz: "弟弟", py: "dìdi", t: [4,5], en: "Younger brother" },
+      { hz: "妹妹", py: "mèimei", t: [4,5], en: "Younger sister" },
+      { hz: "儿子", py: "érzi", t: [2,5], en: "Son" },
+      { hz: "女儿", py: "nǚ'ér", t: [3,2], en: "Daughter" },
+      { hz: "家", py: "jiā", t: [1], en: "Family / home" },
+      { hz: "朋友", py: "péngyou", t: [2,5], en: "Friend" },
+    ]},
+  { id: "food", name: "Food & Drink", emoji: "🍜", desc: "Order and talk about food",
+    words: [
+      { hz: "水", py: "shuǐ", t: [3], en: "Water" },
+      { hz: "茶", py: "chá", t: [2], en: "Tea" },
+      { hz: "咖啡", py: "kāfēi", t: [1,1], en: "Coffee" },
+      { hz: "米饭", py: "mǐfàn", t: [3,4], en: "Rice" },
+      { hz: "面条", py: "miàntiáo", t: [4,2], en: "Noodles" },
+      { hz: "鸡蛋", py: "jīdàn", t: [1,4], en: "Egg" },
+      { hz: "苹果", py: "píngguǒ", t: [2,3], en: "Apple" },
+      { hz: "好吃", py: "hǎochī", t: [3,1], en: "Delicious" },
+      { hz: "我要", py: "wǒ yào", t: [3,4], en: "I want" },
+      { hz: "多少钱", py: "duōshao qián", t: [1,5,2], en: "How much?" },
+    ]},
+  { id: "time", name: "Days & Time", emoji: "📅", desc: "Days of the week & today",
+    words: [
+      { hz: "今天", py: "jīntiān", t: [1,1], en: "Today" },
+      { hz: "明天", py: "míngtiān", t: [2,1], en: "Tomorrow" },
+      { hz: "昨天", py: "zuótiān", t: [2,1], en: "Yesterday" },
+      { hz: "星期一", py: "xīngqī yī", t: [1,1,1], en: "Monday" },
+      { hz: "星期三", py: "xīngqī sān", t: [1,1,1], en: "Wednesday" },
+      { hz: "星期五", py: "xīngqī wǔ", t: [1,1,3], en: "Friday" },
+      { hz: "现在", py: "xiànzài", t: [4,4], en: "Now" },
+      { hz: "点", py: "diǎn", t: [3], en: "O'clock" },
+      { hz: "分钟", py: "fēnzhōng", t: [1,1], en: "Minute" },
+      { hz: "小时", py: "xiǎoshí", t: [3,2], en: "Hour" },
+    ]},
+  { id: "phrases", name: "Useful Phrases", emoji: "💬", desc: "Get by in everyday situations",
+    words: [
+      { hz: "我叫", py: "wǒ jiào", t: [3,4], en: "My name is" },
+      { hz: "你叫什么名字", py: "nǐ jiào shénme míngzi", t: [3,4,2,5,2,5], en: "What's your name?" },
+      { hz: "我是美国人", py: "wǒ shì měiguó rén", t: [3,4,3,2,2], en: "I'm American" },
+      { hz: "我不懂", py: "wǒ bù dǒng", t: [3,4,3], en: "I don't understand" },
+      { hz: "请再说一遍", py: "qǐng zài shuō yí biàn", t: [3,4,1,2,4], en: "Please say it again" },
+      { hz: "厕所在哪里", py: "cèsuǒ zài nǎlǐ", t: [4,3,4,3,3], en: "Where is the toilet?" },
+      { hz: "帮助", py: "bāngzhù", t: [1,4], en: "Help" },
+      { hz: "是", py: "shì", t: [4], en: "Yes / to be" },
+      { hz: "不是", py: "bú shì", t: [2,4], en: "No / is not" },
+      { hz: "我爱你", py: "wǒ ài nǐ", t: [3,4,3], en: "I love you" },
+    ]},
+  { id: "pronouns", name: "Pronouns & Questions", emoji: "👤", desc: "I, you, this, what, where",
+    words: [
+      { hz: "我", py: "wǒ", t: [3], en: "I / me" },
+      { hz: "你", py: "nǐ", t: [3], en: "You" },
+      { hz: "他", py: "tā", t: [1], en: "He / him" },
+      { hz: "她", py: "tā", t: [1], en: "She / her" },
+      { hz: "我们", py: "wǒmen", t: [3,5], en: "We / us" },
+      { hz: "这", py: "zhè", t: [4], en: "This" },
+      { hz: "那", py: "nà", t: [4], en: "That" },
+      { hz: "什么", py: "shénme", t: [2,5], en: "What" },
+      { hz: "谁", py: "shéi", t: [2], en: "Who" },
+      { hz: "哪里", py: "nǎlǐ", t: [3,3], en: "Where" },
+    ]},
+  { id: "verbs", name: "Common Verbs", emoji: "🏃", desc: "Eat, drink, go, see, say",
+    words: [
+      { hz: "吃", py: "chī", t: [1], en: "To eat" },
+      { hz: "喝", py: "hē", t: [1], en: "To drink" },
+      { hz: "去", py: "qù", t: [4], en: "To go" },
+      { hz: "来", py: "lái", t: [2], en: "To come" },
+      { hz: "看", py: "kàn", t: [4], en: "To look / watch" },
+      { hz: "听", py: "tīng", t: [1], en: "To listen" },
+      { hz: "说", py: "shuō", t: [1], en: "To speak" },
+      { hz: "读", py: "dú", t: [2], en: "To read" },
+      { hz: "写", py: "xiě", t: [3], en: "To write" },
+      { hz: "买", py: "mǎi", t: [3], en: "To buy" },
+    ]},
+  { id: "adjectives", name: "Adjectives", emoji: "🎨", desc: "Big, small, hot, cold, fast",
+    words: [
+      { hz: "大", py: "dà", t: [4], en: "Big" },
+      { hz: "小", py: "xiǎo", t: [3], en: "Small" },
+      { hz: "多", py: "duō", t: [1], en: "Many / much" },
+      { hz: "少", py: "shǎo", t: [3], en: "Few / little" },
+      { hz: "好", py: "hǎo", t: [3], en: "Good" },
+      { hz: "坏", py: "huài", t: [4], en: "Bad" },
+      { hz: "热", py: "rè", t: [4], en: "Hot" },
+      { hz: "冷", py: "lěng", t: [3], en: "Cold" },
+      { hz: "快", py: "kuài", t: [4], en: "Fast" },
+      { hz: "慢", py: "màn", t: [4], en: "Slow" },
+    ]},
+  { id: "places", name: "Places & Transport", emoji: "🚕", desc: "Get around town & the country",
+    words: [
+      { hz: "中国", py: "Zhōngguó", t: [1,2], en: "China" },
+      { hz: "北京", py: "Běijīng", t: [3,1], en: "Beijing" },
+      { hz: "学校", py: "xuéxiào", t: [2,4], en: "School" },
+      { hz: "商店", py: "shāngdiàn", t: [1,4], en: "Shop / store" },
+      { hz: "医院", py: "yīyuàn", t: [1,4], en: "Hospital" },
+      { hz: "飞机", py: "fēijī", t: [1,1], en: "Airplane" },
+      { hz: "出租车", py: "chūzūchē", t: [1,1,1], en: "Taxi" },
+      { hz: "火车站", py: "huǒchēzhàn", t: [3,1,4], en: "Train station" },
+      { hz: "公司", py: "gōngsī", t: [1,1], en: "Company" },
+      { hz: "银行", py: "yínháng", t: [2,2], en: "Bank" },
+    ]},
+];
+
+/* ============================================================
+   STATE / STORAGE
+   ============================================================ */
+const STORE_KEY = "mandarin_progress_v1";
+let store = loadStore();
+
+function defaultStore() {
+  return { learned: {}, lastVisit: null, streak: 0, bestQuiz: null,
+           examDate: null, speakScores: {}, typeScores: {},
+           daily: { startDate: null, tasks: {}, completed: {} } };
+}
+function loadStore() {
+  const def = defaultStore();
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (raw) return { ...def, ...raw, daily: { ...def.daily, ...(raw.daily || {}) },
+                      speakScores: raw.speakScores || {},
+                      typeScores: raw.typeScores || {} };
+  } catch (e) {}
+  return def;
+}
+function saveStore() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+
+function wordKey(lessonId, i) { return lessonId + ":" + i; }
+function isLearned(lessonId, i) { return !!store.learned[wordKey(lessonId, i)]; }
+function toggleLearned(lessonId, i) {
+  const k = wordKey(lessonId, i);
+  if (store.learned[k]) delete store.learned[k]; else store.learned[k] = true;
+  saveStore();
+}
+
+/* Streak: increment once per new calendar day, reset if a day skipped */
+function updateStreak() {
+  const today = new Date().toDateString();
+  if (store.lastVisit === today) return;
+  if (store.lastVisit) {
+    const diff = (new Date(today) - new Date(store.lastVisit)) / 86400000;
+    store.streak = diff === 1 ? store.streak + 1 : 1;
+  } else {
+    store.streak = 1;
+  }
+  store.lastVisit = today;
+  saveStore();
+}
+
+/* ============================================================
+   SPEECH
+   ============================================================ */
+let zhVoice = null;
+function pickVoice() {
+  const voices = speechSynthesis.getVoices();
+  zhVoice = voices.find(v => /zh(-|_)?CN/i.test(v.lang)) ||
+            voices.find(v => /^zh/i.test(v.lang)) || null;
+}
+if ('speechSynthesis' in window) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text, rate = 0.85) {
+  if (!('speechSynthesis' in window)) { alert("Your browser doesn't support speech synthesis."); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "zh-CN";
+  u.rate = rate;
+  if (zhVoice) u.voice = zhVoice;
+  speechSynthesis.speak(u);
+}
+
+/* ============================================================
+   PINYIN COLORING
+   ============================================================ */
+function colorPinyin(py, tones) {
+  const syllables = py.split(" ");
+  return syllables.map((syl, i) => {
+    const tone = tones && tones[i] ? tones[i] : 5;
+    return `<span class="tone${tone}">${syl}</span>`;
+  }).join(" ");
+}
+
+/* ============================================================
+   VIEW ROUTING
+   ============================================================ */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === id));
+  if (id === 'progress') renderProgress();
+  if (id === 'lessons') renderLessons();
+  if (id === 'daily') renderDaily();
+  if (id === 'speak') { renderSpeakChips(); renderSpeakCard(); }
+  if (id === 'type') renderTypeBanner();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+document.querySelectorAll('nav button').forEach(b =>
+  b.addEventListener('click', () => showView(b.dataset.view)));
+
+/* ============================================================
+   LESSONS RENDER
+   ============================================================ */
+function lessonProgress(l) {
+  const total = l.words.length;
+  const done = l.words.filter((_, i) => isLearned(l.id, i)).length;
+  return { done, total, pct: Math.round(done / total * 100) };
+}
+
+function renderLessons() {
+  const grid = document.getElementById('lessonGrid');
+  grid.innerHTML = LESSONS.map(l => {
+    const p = lessonProgress(l);
+    return `<div class="lesson-card" onclick="openLesson('${l.id}')">
+      <span class="count">${p.done}/${p.total}</span>
+      <div class="emoji">${l.emoji}</div>
+      <h3>${l.name}</h3>
+      <p>${l.desc}</p>
+      <div class="bar"><span style="width:${p.pct}%"></span></div>
+    </div>`;
+  }).join('');
+}
+
+let currentLesson = null;
+function openLesson(id) {
+  currentLesson = LESSONS.find(l => l.id === id);
+  document.getElementById('ldTitle').textContent = currentLesson.emoji + " " + currentLesson.name;
+  document.getElementById('ldSub').textContent = currentLesson.desc;
+  renderWords();
+  showView('lessonDetail');
+}
+
+function renderWords() {
+  const l = currentLesson;
+  document.getElementById('wordList').innerHTML = l.words.map((w, i) => `
+    <div class="word-row">
+      <div class="hanzi">${w.hz}</div>
+      <div class="info">
+        <div class="pinyin">${colorPinyin(w.py, w.t)}</div>
+        <div class="en">${w.en}</div>
+      </div>
+      <div class="actions">
+        <button class="icon-btn" onclick="speak('${w.hz}')" title="Listen">🔊</button>
+        <button class="icon-btn ${isLearned(l.id,i)?'learned':''}" onclick="markWord(${i}, this)" title="Mark learned">✓</button>
+      </div>
+    </div>`).join('');
+}
+
+function markWord(i, btn) {
+  toggleLearned(currentLesson.id, i);
+  btn.classList.toggle('learned', isLearned(currentLesson.id, i));
+}
+
+function markLessonLearned() {
+  currentLesson.words.forEach((_, i) => { store.learned[wordKey(currentLesson.id, i)] = true; });
+  saveStore();
+  renderWords();
+}
+
+let playIdx = 0;
+function playLesson() {
+  playIdx = 0;
+  const words = currentLesson.words;
+  function next() {
+    if (playIdx >= words.length) return;
+    speak(words[playIdx].hz);
+    playIdx++;
+    setTimeout(next, 1400);
+  }
+  next();
+}
+
+/* ============================================================
+   FLASHCARDS
+   ============================================================ */
+let flashDeck = [], flashPos = 0;
+function startFlash() {
+  const id = document.getElementById('flashLesson').value;
+  const l = LESSONS.find(x => x.id === id);
+  flashDeck = [...l.words].sort(() => Math.random() - 0.5);
+  flashPos = 0;
+  renderFlash();
+}
+function renderFlash() {
+  const area = document.getElementById('flashArea');
+  if (flashPos >= flashDeck.length) {
+    area.innerHTML = `<div class="empty">🎉 Deck complete! <br><br>
+      <button class="btn" onclick="startFlash()">Shuffle again</button></div>`;
+    return;
+  }
+  const w = flashDeck[flashPos];
+  area.innerHTML = `
+    <div class="flash-wrap">
+      <div class="progress-line">Card ${flashPos + 1} / ${flashDeck.length}</div>
+      <div class="flashcard" id="fc" onclick="this.classList.toggle('flipped')">
+        <div class="flash-inner">
+          <div class="flash-face front">
+            <div class="big">${w.hz}</div>
+            <div class="flash-hint">click to reveal</div>
+          </div>
+          <div class="flash-face back">
+            <div class="pinyin">${colorPinyin(w.py, w.t)}</div>
+            <div class="en">${w.en}</div>
+            <button class="icon-btn" onclick="event.stopPropagation();speak('${w.hz}')">🔊</button>
+          </div>
+        </div>
+      </div>
+      <div class="flash-controls">
+        <button class="btn ghost" onclick="nextFlash()">↷ Again</button>
+        <button class="btn" onclick="nextFlash()">✓ Got it</button>
+      </div>
+    </div>`;
+}
+function nextFlash() { flashPos++; renderFlash(); }
+
+/* ============================================================
+   QUIZ
+   ============================================================ */
+let quizQuestions = [], quizPos = 0, quizScore = 0, quizOnDone = null;
+function startQuiz() {
+  const id = document.getElementById('quizLesson').value;
+  let pool;
+  if (id === 'all') pool = LESSONS.flatMap(l => l.words);
+  else pool = LESSONS.find(x => x.id === id).words.slice();
+  runQuiz(pool, 10, null);
+}
+function runQuiz(pool, count, onDone) {
+  quizOnDone = onDone;
+  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(count, pool.length));
+  quizQuestions = shuffled.map(correct => {
+    const distractors = [...pool].filter(w => w.en !== correct.en)
+      .sort(() => Math.random() - 0.5).slice(0, 3);
+    const opts = [correct, ...distractors].sort(() => Math.random() - 0.5);
+    return { correct, opts };
+  });
+  quizPos = 0; quizScore = 0;
+  renderQuiz();
+}
+function renderQuiz() {
+  const area = document.getElementById('quizArea');
+  if (quizPos >= quizQuestions.length) {
+    const total = quizQuestions.length;
+    if (total === 10 && (store.bestQuiz == null || quizScore > store.bestQuiz)) { store.bestQuiz = quizScore; saveStore(); }
+    const extra = quizOnDone ? (quizOnDone(quizScore, total) || '') : '';
+    const again = quizOnDone
+      ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>`
+      : `<button class="btn" onclick="startQuiz()">Try again</button>`;
+    area.innerHTML = `<div class="empty">
+      <div style="font-size:48px">${quizScore === total ? '🏆' : '✅'}</div>
+      You scored <b>${quizScore} / ${total}</b>${extra}<br><br>
+      ${again}</div>`;
+    return;
+  }
+  const q = quizQuestions[quizPos];
+  area.innerHTML = `
+    <div class="quiz-q">
+      <div class="big">${q.correct.hz}</div>
+      <div class="prompt">${colorPinyin(q.correct.py, q.correct.t)} · What does this mean?</div>
+    </div>
+    <div class="options">
+      ${q.opts.map((o, i) => `<div class="option" onclick="answer(this,${i})">${o.en}</div>`).join('')}
+    </div>
+    <div class="quiz-score">Question ${quizPos + 1} / ${quizQuestions.length} · Score: ${quizScore}</div>`;
+  speak(q.correct.hz);
+}
+function answer(el, i) {
+  const q = quizQuestions[quizPos];
+  document.querySelectorAll('.option').forEach((o, j) => {
+    o.style.pointerEvents = 'none';
+    if (q.opts[j].en === q.correct.en) o.classList.add('correct');
+  });
+  if (q.opts[i].en === q.correct.en) quizScore++;
+  else el.classList.add('wrong');
+  setTimeout(() => { quizPos++; renderQuiz(); }, 1000);
+}
+
+/* ============================================================
+   DAILY LESSONS — a day-by-day path through the whole word pool
+   ============================================================ */
+const WORD_POOL = LESSONS.flatMap(l => l.words.map((w, i) => ({ ...w, lesson: l.id, idx: i })));
+const WORDS_PER_DAY = 5;
+const NEW_DAYS = Math.ceil(WORD_POOL.length / WORDS_PER_DAY);
+
+/* deterministic PRNG so a review day always shows the same words */
+function mulberry32(a) { return function() { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function dayWords(n) {
+  if (n <= NEW_DAYS) return WORD_POOL.slice((n - 1) * WORDS_PER_DAY, n * WORDS_PER_DAY);
+  const rnd = mulberry32(n * 7919);              // past the new material: review days
+  return [...WORD_POOL].sort(() => rnd() - 0.5).slice(0, 10);
+}
+
+function unlockedDay() {
+  if (!store.daily.startDate) { store.daily.startDate = new Date().toDateString(); saveStore(); }
+  return Math.floor((new Date(new Date().toDateString()) - new Date(store.daily.startDate)) / 86400000) + 1;
+}
+function taskState(n) {
+  if (!store.daily.tasks[n]) store.daily.tasks[n] = { quiz: false, speak: {}, type: {} };
+  const t = store.daily.tasks[n];
+  t.type = t.type || {};   // upgrade older saves
+  return t;
+}
+function dayStatus(n) {
+  const words = dayWords(n);
+  const t = taskState(n);
+  const study = words.every(w => isLearned(w.lesson, w.idx));
+  const speakNeed = Math.min(3, words.length);
+  const typeNeed = Math.min(3, words.length);
+  const speakCount = Object.keys(t.speak).length;
+  const typeCount = Object.keys(t.type).length;
+  const complete = study && t.quiz && speakCount >= speakNeed && typeCount >= typeNeed;
+  if (complete && !store.daily.completed[n]) { store.daily.completed[n] = true; saveStore(); }
+  return { study, quiz: t.quiz, speakCount, speakNeed, typeCount, typeNeed, complete };
+}
+
+let viewingDay = null;
+function setExamDate(v) { store.examDate = v || null; saveStore(); renderExamBox(); }
+function renderExamBox() {
+  document.getElementById('examDateInput').value = store.examDate || '';
+  const el = document.getElementById('examCountdown');
+  if (!store.examDate) { el.textContent = 'Set your exam date to see the countdown.'; return; }
+  const days = Math.ceil((new Date(store.examDate) - new Date(new Date().toDateString())) / 86400000);
+  el.innerHTML = days > 0 ? `<b class="left">${days} day(s) to go</b> — that's ${days} more daily lesson(s). 加油 (jiāyóu)!`
+    : days === 0 ? `<b class="left">Exam day — 加油 (jiāyóu)!</b>`
+    : `Exam date has passed — set a new goal!`;
+}
+
+function renderDaily() {
+  const unlocked = unlockedDay();
+  if (viewingDay == null) {           // default: first incomplete day
+    viewingDay = unlocked;
+    for (let d = 1; d <= unlocked; d++) if (!store.daily.completed[d]) { viewingDay = d; break; }
+  }
+  renderExamBox();
+  const n = viewingDay;
+  const area = document.getElementById('dailyArea');
+  if (n > unlocked) {
+    area.innerHTML = `<div class="day-card">
+      <div class="day-head"><h3>🔒 Day ${n}</h3>${dayNav(n, unlocked)}</div>
+      <div class="lock-note">This lesson unlocks ${n - unlocked === 1 ? 'tomorrow' : 'in ' + (n - unlocked) + ' days'}.</div>
+    </div>`;
+    return;
+  }
+  const words = dayWords(n);
+  const st = dayStatus(n);
+  const review = n > NEW_DAYS;
+  area.innerHTML = `
+    <div class="day-card">
+      <div class="day-head">
+        <h3>${review ? '🔁 Day ' + n + ' — Review' : '📖 Day ' + n + ' of ' + NEW_DAYS}</h3>
+        <span class="badge ${st.complete ? 'done' : ''}">${st.complete ? '✓ Complete' : 'In progress'}</span>
+        ${dayNav(n, unlocked)}
+      </div>
+      <p class="sub">${review ? 'Review day — revisit ' + words.length + ' words from past lessons.' : "Today's " + words.length + " new words:"}</p>
+      ${words.map(w => `
+        <div class="word-row">
+          <div class="hanzi">${w.hz}</div>
+          <div class="info">
+            <div class="pinyin">${colorPinyin(w.py, w.t)}</div>
+            <div class="en">${w.en}</div>
+          </div>
+          <div class="actions">
+            <button class="icon-btn" onclick="speak('${w.hz}')" title="Listen">🔊</button>
+            <button class="icon-btn ${isLearned(w.lesson, w.idx) ? 'learned' : ''}" onclick="toggleLearned('${w.lesson}',${w.idx});renderDaily()" title="Mark learned">✓</button>
+          </div>
+        </div>`).join('')}
+      <div class="task-row ${st.study ? 'done' : ''}"><span class="tick">${st.study ? '✓' : '1'}</span>
+        <span class="t-label">Study all words — listen 🔊 and mark each ✓</span></div>
+      <div class="task-row ${st.quiz ? 'done' : ''}"><span class="tick">${st.quiz ? '✓' : '2'}</span>
+        <span class="t-label">Pass the mini-quiz (80%+)</span>
+        <button class="btn ghost" onclick="startDailyQuiz(${n})">Start quiz</button></div>
+      <div class="task-row ${st.speakCount >= st.speakNeed ? 'done' : ''}"><span class="tick">${st.speakCount >= st.speakNeed ? '✓' : '3'}</span>
+        <span class="t-label">Pronounce ${st.speakNeed} words at 60%+ (${st.speakCount}/${st.speakNeed})</span>
+        <button class="btn ghost" onclick="startDailySpeak(${n})">Practice</button></div>
+      <div class="task-row ${st.typeCount >= st.typeNeed ? 'done' : ''}"><span class="tick">${st.typeCount >= st.typeNeed ? '✓' : '4'}</span>
+        <span class="t-label">Type the pinyin (with tones) for ${st.typeNeed} words (${st.typeCount}/${st.typeNeed})</span>
+        <button class="btn ghost" onclick="startDailyType(${n})">Practice</button></div>
+      ${st.complete ? `<p style="text-align:center;margin:18px 0 4px">🎉 Day ${n} complete! ${n < unlocked ? `<button class="btn" onclick="viewingDay=${n + 1};renderDaily()">Next day →</button>` : 'See you tomorrow — 明天见 (míngtiān jiàn)!'}</p>` : ''}
+    </div>`;
+}
+function dayNav(n, unlocked) {
+  return `<span class="day-nav">
+    <button ${n <= 1 ? 'disabled' : ''} onclick="viewingDay=${n - 1};renderDaily()">←</button>
+    <button ${n >= unlocked ? 'disabled' : ''} onclick="viewingDay=${n + 1};renderDaily()">→</button>
+  </span>`;
+}
+
+function startDailyQuiz(n) {
+  showView('quiz');
+  const words = dayWords(n);
+  runQuiz(words, Math.min(5, words.length), (score, total) => {
+    const passed = score / total >= 0.8;
+    if (passed) { taskState(n).quiz = true; saveStore(); }
+    return `<br>${passed ? '✅ Task complete — quiz passed!' : '❌ You need 80% — review the words and try again from the daily lesson.'}`;
+  });
+}
+
+/* ============================================================
+   SPEAKING PRACTICE — record your voice & grade pronunciation
+   Uses SpeechRecognition (zh-CN) to transcribe what you say and
+   scores it against the target characters; MediaRecorder captures
+   the same attempt so you can replay yourself.
+   ============================================================ */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let speakTarget = null, speakDay = null, speakState = 'idle', speakResult = null, speakError = null, lastAudioURL = null;
+let recStream = null, recorder = null, recChunks = [];
+
+function renderSpeakChips() {
+  const sel = document.getElementById('speakLesson');
+  const l = LESSONS.find(x => x.id === sel.value) || LESSONS[0];
+  document.getElementById('speakChips').innerHTML = l.words.map((w, i) =>
+    `<button class="chip ${(store.speakScores[w.hz] || 0) >= 60 ? 'scored' : ''}" onclick="setSpeakTarget('${l.id}',${i})">
+      ${w.hz}${store.speakScores[w.hz] != null ? ' · ' + store.speakScores[w.hz] + '%' : ''}</button>`).join('');
+}
+
+function setSpeakTarget(lessonId, i) {
+  const l = LESSONS.find(x => x.id === lessonId);
+  speakTarget = { ...l.words[i], lesson: lessonId, idx: i };
+  speakDay = null; speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
+  renderSpeakCard();
+}
+
+function startDailySpeak(n) {
+  speakDay = n;
+  nextDailySpeakTarget();
+  showView('speak');
+}
+function nextDailySpeakTarget() {
+  const t = taskState(speakDay);
+  const words = dayWords(speakDay);
+  speakTarget = words.find(w => !t.speak[w.hz]) || words[0];
+  speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
+  renderSpeakCard();
+}
+
+function renderSpeakBanner() {
+  const b = document.getElementById('speakBanner');
+  if (speakDay == null) { b.innerHTML = ''; return; }
+  const st = dayStatus(speakDay);
+  b.innerHTML = `<div class="exam-box">🎯 Daily task — pronounce ${st.speakNeed} words at 60%+:
+    <b class="left">${st.speakCount}/${st.speakNeed}</b>
+    ${st.speakCount >= st.speakNeed ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>` : ''}</div>`;
+}
+
+function renderSpeakCard() {
+  renderSpeakBanner();
+  const area = document.getElementById('speakCard');
+  if (!speakTarget) { area.innerHTML = '<div class="empty">Pick a word above to start practicing.</div>'; return; }
+  const w = speakTarget;
+  const best = store.speakScores[w.hz];
+  let resultHtml = '';
+  if (speakState === 'listening') {
+    resultHtml = `<p class="heard">🎙 Listening… say it now!</p>`;
+  } else if (speakError) {
+    resultHtml = `<p class="heard" style="color:var(--accent-2);max-width:420px;margin:10px auto 0">${speakError}</p>`;
+  } else if (speakResult) {
+    const r = speakResult;
+    resultHtml = `
+      <div class="score-big" style="color:${r.score >= 80 ? 'var(--green)' : r.score >= 60 ? 'var(--accent-2)' : 'var(--accent)'}">${r.score}%</div>
+      <div class="score-bar"><span style="width:${r.score}%"></span></div>
+      <div class="char-marks">${r.marks}</div>
+      <p class="heard">Heard: “${r.text || '…nothing'}” · ${r.score >= 80 ? 'Excellent! 太好了 (tài hǎo le)!' : r.score >= 60 ? 'Good — keep polishing the tones.' : 'Listen again and retry — slow down each syllable.'}</p>`;
+  }
+  area.innerHTML = `
+    <div class="speak-card">
+      <div class="big">${w.hz}</div>
+      <div style="font-size:24px;font-weight:700;margin-top:4px">${colorPinyin(w.py, w.t)}</div>
+      <div style="color:var(--muted)">${w.en}</div>
+      <p style="margin:18px 0 8px">
+        <button class="btn ghost" onclick="speak('${w.hz}')">🔊 Listen</button>
+        <button class="rec-btn ${speakState === 'listening' ? 'listening' : ''}" onclick="startAttempt()" ${speakState === 'listening' ? 'disabled' : ''}>
+          ${speakState === 'listening' ? '🎙 Listening…' : '🎤 Record & grade'}</button>
+      </p>
+      ${lastAudioURL ? `<p><audio controls src="${lastAudioURL}"></audio></p>` : ''}
+      ${resultHtml}
+      ${window.self !== window.top && !speakResult && !speakError && speakState === 'idle' ? `<p class="heard">ℹ️ Viewing inside an embedded preview? Mic prompts are often blocked there — open <b>http://localhost:4599</b> in a normal Chrome tab for recording.</p>` : ''}
+      ${best != null ? `<p class="heard">Best score for this word: <b>${best}%</b></p>` : ''}
+      ${speakDay != null ? `<p><button class="btn ghost" onclick="nextDailySpeakTarget()">Next word ↷</button></p>` : ''}
+    </div>`;
+}
+
+function startAttempt() {
+  if (!SR) {
+    speakError = "This browser has no speech recognizer — open the app in Chrome or Edge for pronunciation grading. Recording your voice anyway so you can compare by ear…";
+    renderSpeakCard();
+    return recordOnly();
+  }
+  speakResult = null; speakError = null; lastAudioURL = null; speakState = 'listening';
+  renderSpeakCard();
+  startRecorder();                       // best-effort; runs alongside recognition
+  const r = new SR();
+  r.lang = 'zh-CN';
+  r.interimResults = false;
+  r.maxAlternatives = 5;
+  let got = false, errCode = null;
+  r.onresult = e => { got = true; gradeAttempt([...e.results[0]].map(a => a.transcript)); };
+  r.onerror = e => { errCode = e.error; };
+  r.onend = () => {
+    stopRecorder();
+    if (!got && speakState === 'listening') {
+      speakState = 'idle';
+      speakError = srErrorMessage(errCode);
+      renderSpeakCard();
+    }
+  };
+  try { r.start(); } catch (e) {
+    speakState = 'idle';
+    speakError = 'Could not start the recognizer — reload the page and try again.';
+    renderSpeakCard();
+  }
+}
+function srErrorMessage(code) {
+  switch (code) {
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return "🎙 Microphone access is blocked. Click the mic/lock icon in the address bar and allow it" +
+        (window.self !== window.top ? ", or open <b>http://localhost:4599</b> in a normal Chrome tab — embedded previews usually block the mic." : ", then try again.");
+    case 'no-speech':
+      return "Didn't hear anything — get closer to the mic, speak a little louder, and try again.";
+    case 'audio-capture':
+      return "No microphone was found on this device.";
+    case 'network':
+      return "The speech service couldn't be reached — check your internet connection and try again.";
+    default:
+      return "Recognition stopped" + (code ? " (" + code + ")" : "") + " — try again.";
+  }
+}
+
+async function startRecorder() {
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recChunks = [];
+    recorder = new MediaRecorder(recStream);
+    recorder.ondataavailable = e => recChunks.push(e.data);
+    recorder.onstop = () => {
+      lastAudioURL = URL.createObjectURL(new Blob(recChunks, { type: recorder.mimeType }));
+      recStream.getTracks().forEach(t => t.stop());
+      renderSpeakCard();
+    };
+    recorder.start();
+  } catch (e) { /* mic denied — recognition-based grading still works */ }
+}
+function stopRecorder() { if (recorder && recorder.state === 'recording') recorder.stop(); }
+function recordOnly() {
+  speakState = 'listening'; renderSpeakCard();
+  startRecorder().then(() => setTimeout(() => { stopRecorder(); speakState = 'idle'; renderSpeakCard(); }, 4000));
+}
+
+function normHz(s) { return (s || '').replace(/[^一-鿿]/g, ''); }
+/* longest common subsequence length — order-aware character overlap */
+function lcsLen(a, b) {
+  const dp = Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = 0;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev + 1 : Math.max(dp[j], dp[j - 1]);
+      prev = tmp;
+    }
+  }
+  return dp[b.length];
+}
+function markChars(recognized) {
+  return normHz(speakTarget.hz).split('').map(c =>
+    `<span class="${recognized.includes(c) ? 'ok' : 'miss'}">${c}</span>`).join('');
+}
+function gradeAttempt(alts) {
+  const target = normHz(speakTarget.hz);
+  let best = { score: 0, text: alts[0] || '' };
+  alts.forEach(t => {
+    const s = Math.round(lcsLen(target, normHz(t)) / target.length * 100);
+    if (s > best.score) best = { score: s, text: t };
+  });
+  speakState = 'idle';
+  speakResult = { score: best.score, text: best.text, marks: markChars(normHz(best.text)) };
+  if ((store.speakScores[speakTarget.hz] || 0) < best.score) store.speakScores[speakTarget.hz] = best.score;
+  if (speakDay != null && best.score >= 60) taskState(speakDay).speak[speakTarget.hz] = true;
+  saveStore();
+  renderSpeakCard();
+  renderSpeakChips();
+}
+
+/* ============================================================
+   PINYIN TYPING — type pinyin with tone numbers (ni3 hao3)
+   ============================================================ */
+let typeDeck = [], typePos = 0, typeDay = null, typeSessionScore = 0, typeAnswered = false;
+
+function startTypeDeck() {
+  const id = document.getElementById('typeLesson').value;
+  const l = LESSONS.find(x => x.id === id);
+  typeDay = null;
+  typeDeck = l.words.map((w, i) => ({ ...w, lesson: l.id, idx: i })).sort(() => Math.random() - 0.5);
+  typePos = 0; typeSessionScore = 0;
+  renderType();
+}
+function startDailyType(n) {
+  typeDay = n;
+  const t = taskState(n);
+  typeDeck = dayWords(n).filter(w => !t.type[w.hz]);
+  typePos = 0; typeSessionScore = 0;
+  showView('type');
+  renderType();
+}
+function renderTypeBanner() {
+  const b = document.getElementById('typeBanner');
+  if (typeDay == null) { b.innerHTML = ''; return; }
+  const st = dayStatus(typeDay);
+  b.innerHTML = `<div class="exam-box">🎯 Daily task — type ${st.typeNeed} words with correct tones:
+    <b class="left">${st.typeCount}/${st.typeNeed}</b>
+    ${st.typeCount >= st.typeNeed ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>` : ''}</div>`;
+}
+function renderType() {
+  renderTypeBanner();
+  typeAnswered = false;
+  const area = document.getElementById('typeArea');
+  if (!typeDeck.length || typePos >= typeDeck.length) {
+    area.innerHTML = typeDeck.length
+      ? `<div class="empty">🎉 Deck complete — session score <b>${Math.round(typeSessionScore / typeDeck.length)}%</b>.<br><br>
+          ${typeDay != null ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>` : `<button class="btn" onclick="startTypeDeck()">Practice again</button>`}</div>`
+      : `<div class="empty">Pick a lesson above and press Start practice.</div>`;
+    return;
+  }
+  const w = typeDeck[typePos];
+  area.innerHTML = `
+    <div class="quiz-q">
+      <div class="big">${w.hz}</div>
+      <div class="prompt">${w.en} — type the pinyin with tone numbers
+        <button class="icon-btn" onclick="speak('${w.hz}')" title="Listen">🔊</button></div>
+      <p><input id="typeInput" class="type-input" autocomplete="off" spellcheck="false"
+        placeholder="e.g. ni3 hao3" onkeydown="if(event.key==='Enter')submitType()"></p>
+      <p><button class="btn" onclick="submitType()">Check</button></p>
+      <div id="typeFeedback"></div>
+    </div>
+    <div class="quiz-score">Word ${typePos + 1} / ${typeDeck.length}</div>`;
+  document.getElementById('typeInput').focus();
+}
+/* tone-marked pinyin → bare letters (ü becomes v) for comparison */
+function pyBase(py) {
+  return py.toLowerCase().normalize('NFD')
+    .replace(/ü/g, 'v')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z]/g, '');
+}
+function submitType() {
+  if (typeAnswered) return;
+  const w = typeDeck[typePos];
+  const raw = document.getElementById('typeInput').value.toLowerCase().trim();
+  if (!raw) return;
+  typeAnswered = true;
+  const uDigits = (raw.match(/[0-5]/g) || []).map(Number);
+  const uBase = raw.replace(/ü/g, 'v').replace(/[^a-z]/g, '');
+  const tBase = pyBase(w.py);
+  const baseOk = uBase === tBase || uBase.replace(/v/g, 'u') === tBase.replace(/v/g, 'u');
+  const tonesOk = uDigits.length === w.t.length &&
+    uDigits.every((d, i) => d === w.t[i] || (d === 0 && w.t[i] === 5));
+  const score = !baseOk ? 0 : uDigits.length === 0 ? 50 : tonesOk ? 100 : 50;
+  typeSessionScore += score;
+  if ((store.typeScores[w.hz] || 0) < score) store.typeScores[w.hz] = score;
+  if (typeDay != null && score === 100) taskState(typeDay).type[w.hz] = true;
+  saveStore();
+  const answer = `${colorPinyin(w.py, w.t)} <span class="heard">(tones: ${w.t.join('-')})</span>`;
+  document.getElementById('typeFeedback').innerHTML = (
+    score === 100 ? `<p style="color:var(--green);font-weight:700">✓ Perfect! ${answer}</p>`
+    : score === 50 ? `<p style="color:var(--accent-2);font-weight:700">≈ Right sounds, wrong or missing tones. ${answer}</p>`
+    : `<p style="color:var(--accent);font-weight:700">✗ Not quite. ${answer}</p>`
+  ) + `<p><button class="btn" onclick="typePos++;renderType()">Next →</button></p>`;
+  renderTypeBanner();
+}
+
+/* ============================================================
+   PROGRESS
+   ============================================================ */
+function renderProgress() {
+  const total = LESSONS.reduce((s, l) => s + l.words.length, 0);
+  const learned = Object.keys(store.learned).length;
+  const lessonsComplete = LESSONS.filter(l => lessonProgress(l).pct === 100).length;
+  document.getElementById('statWords').textContent = learned;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statLessons').textContent = lessonsComplete;
+  document.getElementById('statStreak').textContent = store.streak;
+  document.getElementById('statQuiz').textContent = store.bestQuiz == null ? '—' : store.bestQuiz + '/10';
+  document.getElementById('statDays').textContent = Object.keys(store.daily.completed).length;
+  document.getElementById('statSpeak').textContent = Object.values(store.speakScores).filter(s => s >= 80).length;
+  document.getElementById('statType').textContent = Object.values(store.typeScores).filter(s => s >= 100).length;
+
+  document.getElementById('progList').innerHTML = LESSONS.map(l => {
+    const p = lessonProgress(l);
+    return `<div class="prog-lesson">
+      <div class="name">${l.emoji} ${l.name}</div>
+      <div class="bar"><span style="width:${p.pct}%"></span></div>
+      <div class="pct">${p.pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function resetProgress() {
+  if (!confirm("Reset all learned words, daily lessons, pronunciation scores, streak and quiz scores? This can't be undone.")) return;
+  store = defaultStore();
+  viewingDay = null; speakTarget = null; speakDay = null; speakResult = null; lastAudioURL = null;
+  typeDeck = []; typeDay = null;
+  saveStore();
+  updateStreak();
+  renderProgress(); renderLessons(); updateStreakDisplay(); renderDaily();
+  renderSpeakChips(); renderSpeakCard(); renderType();
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function fillLessonSelects() {
+  const opts = LESSONS.map(l => `<option value="${l.id}">${l.emoji} ${l.name}</option>`).join('');
+  document.getElementById('flashLesson').innerHTML = opts;
+  document.getElementById('quizLesson').innerHTML =
+    `<option value="all">🎲 All lessons</option>` + opts;
+  document.getElementById('speakLesson').innerHTML = opts;
+  document.getElementById('typeLesson').innerHTML = opts;
+}
+function updateStreakDisplay() {
+  document.getElementById('streakCount').textContent = store.streak;
+}
+
+updateStreak();
+updateStreakDisplay();
+renderLessons();
+fillLessonSelects();
+renderDaily();
+renderSpeakChips();
+renderSpeakCard();
+renderType();
+</script>
+</body>
+</html>
