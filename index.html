@@ -262,6 +262,7 @@
   <button data-view="quiz">✍️ Quiz</button>
   <button data-view="speak">🎤 Speak</button>
   <button data-view="type">⌨️ Type</button>
+  <button data-view="train">🎧 Train</button>
   <button data-view="progress">📊 Progress</button>
 </nav>
 
@@ -350,6 +351,18 @@
     <div id="typeArea"></div>
   </section>
 
+  <!-- TRAIN -->
+  <section id="train" class="view">
+    <h2>Training drills</h2>
+    <p class="sub">The three skills exams and conversations actually test: understand Mandarin <b>by ear</b> (no text), <b>produce it</b> from English, and <b>hear tones</b> reliably. 10 rounds per drill — beat your best.</p>
+    <div class="row-actions">
+      <button class="btn ghost" onclick="startTrain('listen')">🎧 Listening</button>
+      <button class="btn ghost" onclick="startTrain('produce')">🗣 Say it in Chinese</button>
+      <button class="btn ghost" onclick="startTrain('tone')">🎵 Tone ears</button>
+    </div>
+    <div id="trainArea"><div class="empty">Pick a drill above.<br><br>🎧 <b>Listening</b> — hear it, pick the meaning.<br>🗣 <b>Say it in Chinese</b> — see English, speak the Mandarin (graded).<br>🎵 <b>Tone ears</b> — hear a word, name its tone pattern.</div></div>
+  </section>
+
   <!-- PROGRESS -->
   <section id="progress" class="view">
     <h2>Your progress</h2>
@@ -363,6 +376,9 @@
       <div class="stat"><div class="num" id="statDays">0</div><div class="label">Daily lessons done</div></div>
       <div class="stat"><div class="num" id="statSpeak">0</div><div class="label">Words spoken at 80%+</div></div>
       <div class="stat"><div class="num" id="statType">0</div><div class="label">Pinyin typed at 100%</div></div>
+      <div class="stat"><div class="num" id="statListen">—</div><div class="label">Listening drill best</div></div>
+      <div class="stat"><div class="num" id="statProduce">—</div><div class="label">Say-it drill best</div></div>
+      <div class="stat"><div class="num" id="statToneEar">—</div><div class="label">Tone-ear drill best</div></div>
     </div>
     <h3>By lesson</h3>
     <div id="progList"></div>
@@ -774,7 +790,7 @@ let store = loadStore();
 
 function defaultStore() {
   return { learned: {}, lastVisit: null, streak: 0, bestQuiz: null,
-           examDate: null, speakScores: {}, typeScores: {},
+           examDate: null, speakScores: {}, typeScores: {}, trainBest: {},
            daily: { startDate: null, tasks: {}, completed: {} } };
 }
 function loadStore() {
@@ -783,7 +799,7 @@ function loadStore() {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY));
     if (raw) return { ...def, ...raw, daily: { ...def.daily, ...(raw.daily || {}) },
                       speakScores: raw.speakScores || {},
-                      typeScores: raw.typeScores || {} };
+                      typeScores: raw.typeScores || {}, trainBest: raw.trainBest || {} };
   } catch (e) {}
   return def;
 }
@@ -856,8 +872,9 @@ function showView(id) {
   if (id === 'progress') renderProgress();
   if (id === 'lessons') renderLessons();
   if (id === 'daily') renderDaily();
-  if (id === 'speak') { renderSpeakChips(); renderSpeakCard(); }
+  if (id === 'speak') { speakRenderFn = null; renderSpeakChips(); speakRender(); }
   if (id === 'type') renderTypeBanner();
+  if (id === 'train') renderTrain();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 document.querySelectorAll('nav button').forEach(b =>
@@ -1232,6 +1249,9 @@ function startDailyQuiz(n) {
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let speakTarget = null, speakDay = null, speakState = 'idle', speakResult = null, speakError = null, speakErrCode = null, lastAudioURL = null;
 let recStream = null, recorder = null, recChunks = [];
+/* the speech engine renders into whichever view is driving it (Speak tab or Train tab) */
+let speakRenderFn = null;
+function speakRender() { (speakRenderFn || renderSpeakCard)(); }
 
 function renderSpeakChips() {
   const sel = document.getElementById('speakLesson');
@@ -1245,7 +1265,8 @@ function setSpeakTarget(lessonId, i) {
   const l = LESSONS.find(x => x.id === lessonId);
   speakTarget = { ...l.words[i], lesson: lessonId, idx: i };
   speakDay = null; speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
-  renderSpeakCard();
+  speakRenderFn = null;
+  speakRender();
 }
 
 function startDailySpeak(n) {
@@ -1258,7 +1279,8 @@ function nextDailySpeakTarget() {
   const sents = getDaySentences(speakDay);
   speakTarget = sents.find(s => !t.sent[s.hz]) || sents[0];
   speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
-  renderSpeakCard();
+  speakRenderFn = null;
+  speakRender();
 }
 
 function renderSpeakBanner() {
@@ -1317,7 +1339,7 @@ function renderSpeakCard() {
 function startAttempt() {
   if (!SR || store.asrEngine === 'whisper') return whisperAttempt();
   speakResult = null; speakError = null; speakErrCode = null; lastAudioURL = null; speakState = 'listening';
-  renderSpeakCard();
+  speakRender();
   startRecorder();                       // best-effort; runs alongside recognition
   const r = new SR();
   r.lang = 'zh-CN';
@@ -1339,13 +1361,13 @@ function startAttempt() {
       speakState = 'idle';
       speakErrCode = errCode;
       speakError = srErrorMessage(errCode);
-      renderSpeakCard();
+      speakRender();
     }
   };
   try { r.start(); } catch (e) {
     speakState = 'idle';
     speakError = 'Could not start the recognizer — reload the page and try again.';
-    renderSpeakCard();
+    speakRender();
   }
 }
 
@@ -1359,12 +1381,12 @@ function loadWhisper() {
     whisperLoading = (async () => {
       speakState = 'loading';
       whisperProgress = 'Loading the on-device speech model…';
-      renderSpeakCard();
+      speakRender();
       const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/dist/transformers.min.js');
       const progress_callback = p => {
         if (p.status === 'progress' && p.progress != null && speakState === 'loading') {
           whisperProgress = `Downloading the speech model — ${Math.round(p.progress)}% (one-time; cached for next time)`;
-          renderSpeakCard();
+          speakRender();
         }
       };
       try {
@@ -1384,17 +1406,17 @@ async function whisperAttempt() {
   } catch (e) {
     speakState = 'idle'; speakErrCode = 'no-sr';
     speakError = "Couldn't load the on-device speech model — check your internet connection and reload the page. You can still record yourself and compare by ear:";
-    renderSpeakCard();
+    speakRender();
     return;
   }
   speakResult = null; speakError = null; speakErrCode = null; lastAudioURL = null;
   speakState = 'listening';
-  renderSpeakCard();
+  speakRender();
   const ok = await startRecorder();
   if (!ok) {
     speakState = 'idle'; speakErrCode = 'not-allowed';
     speakError = srErrorMessage('not-allowed');
-    renderSpeakCard();
+    speakRender();
     return;
   }
   // recording window scales with sentence length
@@ -1404,11 +1426,11 @@ async function whisperAttempt() {
   if (!blob || blob.size < 1000) {
     speakState = 'idle'; speakErrCode = 'no-speech';
     speakError = srErrorMessage('no-speech');
-    renderSpeakCard();
+    speakRender();
     return;
   }
   speakState = 'analyzing';
-  renderSpeakCard();
+  speakRender();
   try {
     const pcm = await blobToPCM(blob);
     const out = await whisper(pcm, { language: 'chinese', task: 'transcribe' });
@@ -1416,7 +1438,7 @@ async function whisperAttempt() {
   } catch (e) {
     speakState = 'idle';
     speakError = 'Analysis failed — try recording again.';
-    renderSpeakCard();
+    speakRender();
   }
 }
 
@@ -1467,7 +1489,7 @@ async function startRecorder() {
       const blob = new Blob(recChunks, { type: recorder.mimeType });
       if (blob.size > 1000) lastAudioURL = URL.createObjectURL(blob);  // skip empty recordings
       recStream.getTracks().forEach(t => t.stop());
-      renderSpeakCard();
+      speakRender();
     };
     recorder.start();
     return true;
@@ -1477,19 +1499,19 @@ function stopRecorder() { if (recorder && recorder.state === 'recording') record
 async function recordOnly() {
   const prevError = speakError, prevCode = speakErrCode;   // restore the browser-support hint afterwards
   speakResult = null; speakError = null; lastAudioURL = null; speakState = 'listening';
-  renderSpeakCard();
+  speakRender();
   const ok = await startRecorder();
   if (!ok) {
     speakState = 'idle'; speakErrCode = 'not-allowed';
     speakError = srErrorMessage('not-allowed');
-    renderSpeakCard();
+    speakRender();
     return;
   }
   setTimeout(() => {
     stopRecorder();
     speakState = 'idle';
     speakError = prevError; speakErrCode = prevCode;
-    renderSpeakCard();
+    speakRender();
   }, 3500);
 }
 
@@ -1554,7 +1576,7 @@ function gradeAttempt(alts) {
   if ((store.speakScores[speakTarget.hz] || 0) < best.score) store.speakScores[speakTarget.hz] = best.score;
   if (speakDay != null && best.score >= 60) taskState(speakDay).sent[speakTarget.hz] = true;
   saveStore();
-  renderSpeakCard();
+  speakRender();
   renderSpeakChips();
 }
 
@@ -1670,6 +1692,131 @@ function submitType() {
 }
 
 /* ============================================================
+   TRAINING DRILLS — listening, production, tone ears
+   ============================================================ */
+const SENT_POOL = CURRICULUM.flatMap(c =>
+  [...c.grammar.ex, ...c.dialog.map(d => ({ hz: d.hz, py: d.py, t: d.t, en: d.en }))]);
+const TRAIN_ROUNDS = 10;
+let trainMode = null, trainPos = 0, trainScore = 0, trainItem = null, trainOpts = [], trainAnswered = false, trainHint = false;
+
+function trainPool() {
+  if (trainMode === 'tone') return WORD_POOL.filter(w => w.t.length === 2);
+  if (trainMode === 'produce') return [...WORD_POOL.filter(w => normHz(w.hz).length >= 2), ...SENT_POOL];
+  return [...WORD_POOL, ...SENT_POOL];
+}
+function startTrain(mode) {
+  trainMode = mode; trainPos = 0; trainScore = 0;
+  nextTrainRound();
+}
+function nextTrainRound() {
+  trainAnswered = false; trainHint = false;
+  const pool = trainPool();
+  trainItem = pool[Math.floor(Math.random() * pool.length)];
+  if (trainMode === 'listen') {
+    const distract = pool.filter(x => x.en !== trainItem.en).sort(() => Math.random() - 0.5).slice(0, 3);
+    trainOpts = [{ label: trainItem.en, correct: true }, ...distract.map(d => ({ label: d.en, correct: false }))]
+      .sort(() => Math.random() - 0.5);
+  } else if (trainMode === 'tone') {
+    const fmt = t => t.map(x => x + ' ' + TONE_INFO[x].mark).join('  +  ');
+    const seen = new Set([trainItem.t.join('-')]);
+    trainOpts = [{ label: fmt(trainItem.t), correct: true }];
+    while (trainOpts.length < 4) {
+      const cand = [1 + Math.floor(Math.random() * 4), 1 + Math.floor(Math.random() * 5)];
+      if (seen.has(cand.join('-'))) continue;
+      seen.add(cand.join('-'));
+      trainOpts.push({ label: fmt(cand), correct: false });
+    }
+    trainOpts.sort(() => Math.random() - 0.5);
+  } else if (trainMode === 'produce') {
+    speakDay = null; speakTarget = trainItem;
+    speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
+    speakRenderFn = renderTrain;
+  }
+  renderTrain();
+  if (trainMode !== 'produce') setTimeout(() => speak(trainItem.hz), 300);
+}
+function trainAnswer(i) {
+  if (trainAnswered || trainMode === 'produce') return;
+  trainAnswered = true;
+  trainOpts[i].picked = true;
+  if (trainOpts[i].correct) trainScore++;
+  renderTrain();
+}
+function trainNext() {
+  trainPos++;
+  if (trainPos >= TRAIN_ROUNDS) {
+    if (!store.trainBest) store.trainBest = {};
+    if ((store.trainBest[trainMode] || 0) < trainScore) { store.trainBest[trainMode] = trainScore; saveStore(); }
+  } else {
+    nextTrainRound();
+    return;
+  }
+  renderTrain();
+}
+function renderTrain() {
+  const area = document.getElementById('trainArea');
+  if (!trainMode) {
+    area.innerHTML = '<div class="empty">Pick a drill above.<br><br>🎧 <b>Listening</b> — hear it, pick the meaning.<br>🗣 <b>Say it in Chinese</b> — see English, speak the Mandarin (graded).<br>🎵 <b>Tone ears</b> — hear a word, name its tone pattern.</div>';
+    return;
+  }
+  if (trainPos >= TRAIN_ROUNDS) {
+    const best = (store.trainBest || {})[trainMode] || 0;
+    area.innerHTML = `<div class="empty"><div style="font-size:48px">${trainScore >= 8 ? '🏆' : '✅'}</div>
+      Drill complete — <b>${trainScore} / ${TRAIN_ROUNDS}</b> · Best: ${best}<br><br>
+      <button class="btn" onclick="startTrain('${trainMode}')">Go again</button></div>`;
+    return;
+  }
+  const head = `<div class="quiz-score" style="margin-bottom:10px">Round ${trainPos + 1} / ${TRAIN_ROUNDS} · Score: ${trainScore} · Best: ${(store.trainBest || {})[trainMode] || 0}</div>`;
+  if (trainMode === 'produce') { renderTrainProduce(area, head); return; }
+  area.innerHTML = `${head}
+    <div class="quiz-q">
+      <button class="btn" onclick="speak('${trainItem.hz}')">🔊 Play ${trainAnswered ? '' : 'again'}</button>
+      <div class="prompt" style="margin-top:10px">${trainMode === 'listen' ? 'What does it mean?' : 'Which tones did you hear?'}</div>
+      ${trainAnswered ? `<div style="margin-top:12px"><span style="font-size:32px">${trainItem.hz}</span><br>
+        <b>${colorPinyin(trainItem.py, trainItem.t)}</b> · <span style="color:var(--muted)">${trainItem.en}</span></div>` : ''}
+    </div>
+    <div class="options">
+      ${trainOpts.map((o, i) => `<div class="option ${trainAnswered ? (o.correct ? 'correct' : (o.picked ? 'wrong' : '')) : ''}" onclick="trainAnswer(${i})">${o.label}</div>`).join('')}
+    </div>
+    ${trainAnswered ? `<p style="text-align:center;margin-top:14px"><button class="btn" onclick="trainNext()">Next →</button></p>` : ''}`;
+}
+function renderTrainProduce(area, head) {
+  if (speakResult && !trainAnswered) {          // first grade of the round decides the point
+    trainAnswered = true;
+    if (speakResult.score >= 60) trainScore++;
+  }
+  const w = trainItem;
+  let mid = '';
+  if (speakState === 'listening') mid = `<p class="heard">🎙 Listening… say it in Chinese now!</p>`;
+  else if (speakState === 'loading') mid = `<p class="heard">⏳ ${whisperProgress || 'Loading the speech model…'}</p>`;
+  else if (speakState === 'analyzing') mid = `<p class="heard">🤔 Analyzing…</p>`;
+  else if (speakError) mid = `<p class="heard" style="color:var(--accent-2)">${speakError}</p>`;
+  else if (speakResult) {
+    const r = speakResult;
+    mid = `<div class="score-big" style="color:${r.score >= 80 ? 'var(--green)' : r.score >= 60 ? 'var(--accent-2)' : 'var(--accent)'}">${r.score}%</div>
+      <div style="font-size:30px;margin-top:4px">${w.hz}</div>
+      <div style="font-weight:700">${colorPinyin(w.py, w.t)}</div>
+      <p class="heard">Heard: “${r.text || '…nothing'}” ${r.score < 60 ? '· listen 🔊 and try the next one' : ''}</p>
+      <p><button class="btn ghost" onclick="speak('${w.hz}')">🔊 Hear it</button></p>`;
+  }
+  area.innerHTML = `${head}
+    <div class="quiz-q">
+      <div class="prompt">Say it in Chinese:</div>
+      <div style="font-size:24px;font-weight:700;margin:8px 0 14px">“${w.en}”</div>
+      <p>
+        <button class="rec-btn ${speakState === 'listening' ? 'listening' : ''}" onclick="startAttempt()" ${speakState !== 'idle' ? 'disabled' : ''}>
+          ${speakState === 'listening' ? '🎙 Listening…' : speakState === 'loading' ? '⏳ Loading model…' : speakState === 'analyzing' ? '🤔 Analyzing…' : '🎤 Record & grade'}</button>
+        ${!speakResult && !trainHint ? `<button class="btn ghost" onclick="trainHint=true;renderTrain()">💡 Show answer</button>` : ''}
+      </p>
+      ${trainHint && !speakResult ? `<div style="font-size:26px">${w.hz}</div><div style="font-weight:700">${colorPinyin(w.py, w.t)}</div>
+        <p><button class="btn ghost" onclick="speak('${w.hz}')">🔊 Listen</button></p>` : ''}
+      ${lastAudioURL ? `<p><audio controls src="${lastAudioURL}"></audio></p>` : ''}
+      ${mid}
+      ${trainAnswered ? `<p style="margin-top:12px"><button class="btn" onclick="trainNext()">Next →</button></p>` : ''}
+    </div>`;
+}
+
+/* ============================================================
    PROGRESS
    ============================================================ */
 function renderProgress() {
@@ -1684,6 +1831,10 @@ function renderProgress() {
   document.getElementById('statDays').textContent = Object.keys(store.daily.completed).length;
   document.getElementById('statSpeak').textContent = Object.values(store.speakScores).filter(s => s >= 80).length;
   document.getElementById('statType').textContent = Object.values(store.typeScores).filter(s => s >= 100).length;
+  const tb = store.trainBest || {};
+  document.getElementById('statListen').textContent = tb.listen != null ? tb.listen + '/10' : '—';
+  document.getElementById('statProduce').textContent = tb.produce != null ? tb.produce + '/10' : '—';
+  document.getElementById('statToneEar').textContent = tb.tone != null ? tb.tone + '/10' : '—';
 
   document.getElementById('progList').innerHTML = LESSONS.map(l => {
     const p = lessonProgress(l);
@@ -1699,11 +1850,11 @@ function resetProgress() {
   if (!confirm("Reset all learned words, daily lessons, pronunciation scores, streak and quiz scores? This can't be undone.")) return;
   store = defaultStore();
   viewingDay = null; speakTarget = null; speakDay = null; speakResult = null; lastAudioURL = null;
-  typeDeck = []; typeDay = null;
+  typeDeck = []; typeDay = null; trainMode = null; speakRenderFn = null;
   saveStore();
   updateStreak();
   renderProgress(); renderLessons(); updateStreakDisplay(); renderDaily();
-  renderSpeakChips(); renderSpeakCard(); renderType();
+  renderSpeakChips(); speakRender(); renderType(); renderTrain();
 }
 
 /* ============================================================
@@ -1727,7 +1878,7 @@ renderLessons();
 fillLessonSelects();
 renderDaily();
 renderSpeakChips();
-renderSpeakCard();
+speakRender();
 renderType();
 </script>
 </body>
