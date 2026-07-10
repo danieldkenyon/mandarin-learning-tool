@@ -184,6 +184,15 @@
   .task-row .t-label { flex:1; font-size:14px; }
   .task-row.done .t-label { color:var(--muted); text-decoration:line-through; }
   .lock-note { text-align:center; color:var(--muted); padding:30px; }
+  .gram-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+  .gram-pattern { font-size: 22px; font-weight: 800; color: var(--accent-2); margin-bottom: 6px; }
+  .gram-explain { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+  .dlg-line { display: flex; align-items: center; gap: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin-top: 8px; }
+  .dlg-line .info { flex: 1; }
+  .dlg-line .hz { font-size: 20px; }
+  .who { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex: 0 0 28px; }
+  .who.a { background: var(--accent); color: #fff; }
+  .who.b { background: var(--accent-2); color: #3a2b00; }
 
   /* Speaking practice */
   .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
@@ -240,7 +249,7 @@
 
 <nav>
   <button data-view="daily" class="active">🎯 Daily</button>
-  <button data-view="lessons">📚 Lessons</button>
+  <button data-view="lessons">📚 Vocab</button>
   <button data-view="flash">🃏 Flashcards</button>
   <button data-view="quiz">✍️ Quiz</button>
   <button data-view="speak">🎤 Speak</button>
@@ -252,7 +261,7 @@
   <!-- DAILY -->
   <section id="daily" class="view active">
     <h2>Daily lesson</h2>
-    <p class="sub">One bite-sized lesson per day on the road to your exam: learn the new words, pass a mini-quiz, and nail the pronunciation. A new day unlocks every calendar day — consistency beats cramming.</p>
+    <p class="sub">One real lesson per day on the road to your exam: new words, a grammar pattern, a dialogue to practice aloud, full sentences to speak, plus a quiz and pinyin typing. A new day unlocks every calendar day — consistency beats cramming.</p>
     <div class="exam-box">
       🎓 Exam date:
       <input type="date" id="examDateInput" onchange="setExamDate(this.value)">
@@ -263,8 +272,8 @@
 
   <!-- LESSONS -->
   <section id="lessons" class="view">
-    <h2>Lessons</h2>
-    <p class="sub">Pick a topic. Tap 🔊 to hear pronunciation, tap ✓ to mark a word learned. Pinyin is colored by tone.</p>
+    <h2>Vocabulary decks</h2>
+    <p class="sub">Reference decks of all 100 words — tap 🔊 to hear pronunciation, ✓ to mark learned. Your structured lessons (grammar, dialogues, speaking) live in 🎯 Daily.</p>
     <div class="tone-legend">
       <span><i class="dot" style="background:var(--t1)"></i>1st (flat)</span>
       <span><i class="dot" style="background:var(--t2)"></i>2nd (rising)</span>
@@ -493,6 +502,259 @@ const LESSONS = [
       { hz: "火车站", py: "huǒchēzhàn", t: [3,1,4], en: "Train station" },
       { hz: "公司", py: "gōngsī", t: [1,1], en: "Company" },
       { hz: "银行", py: "yínháng", t: [2,2], en: "Bank" },
+    ]},
+];
+
+/* ============================================================
+   CURRICULUM — one real lesson per day: grammar + dialogue.
+   Day N uses the Nth slice of 5 words from the decks above.
+   ============================================================ */
+const CURRICULUM = [
+  { title: "Saying hello",
+    grammar: { name: "Questions with 吗", pattern: "statement + 吗？ = question",
+      explain: "Add 吗 (ma) to the end of any statement to turn it into a yes/no question — the word order never changes. 你好 (hello) → 你好吗？ (how are you?)",
+      ex: [
+        { hz: "你好吗？", py: "nǐ hǎo ma?", t: [3,3,5], en: "How are you?" },
+        { hz: "我很好，谢谢！", py: "wǒ hěn hǎo, xiè xie!", t: [3,3,3,4,5], en: "I'm fine, thanks!" },
+      ]},
+    dialog: [
+      { who: "A", hz: "你好！", py: "nǐ hǎo!", t: [3,3], en: "Hello!" },
+      { who: "B", hz: "你好！你好吗？", py: "nǐ hǎo! nǐ hǎo ma?", t: [3,3,3,3,5], en: "Hello! How are you?" },
+      { who: "A", hz: "我很好，谢谢！", py: "wǒ hěn hǎo, xiè xie!", t: [3,3,3,4,5], en: "I'm fine, thanks!" },
+      { who: "B", hz: "不客气。", py: "bú kè qi.", t: [2,4,5], en: "You're welcome." },
+    ]},
+  { title: "Sorry & goodbye",
+    grammar: { name: "Polite replies", pattern: "谢谢 → 不客气 · 对不起 → 没关系",
+      explain: "Every polite phrase has a set reply: someone thanks you (谢谢) → 不客气 (you're welcome); someone apologises (对不起) → 没关系 (it's okay). Learn them as pairs.",
+      ex: [
+        { hz: "对不起！", py: "duì bu qǐ!", t: [4,5,3], en: "Sorry!" },
+        { hz: "没关系。", py: "méi guān xi.", t: [2,1,5], en: "It's okay." },
+      ]},
+    dialog: [
+      { who: "A", hz: "对不起！", py: "duì bu qǐ!", t: [4,5,3], en: "Sorry!" },
+      { who: "B", hz: "没关系。", py: "méi guān xi.", t: [2,1,5], en: "It's okay." },
+      { who: "A", hz: "再见！", py: "zài jiàn!", t: [4,4], en: "Goodbye!" },
+      { who: "B", hz: "再见，晚安！", py: "zài jiàn, wǎn ān!", t: [4,4,3,1], en: "Bye, good night!" },
+    ]},
+  { title: "Numbers 1–5",
+    grammar: { name: "Counting 1–5", pattern: "一 二 三 四 五",
+      explain: "Numbers never change form. Watch the tones: 一 (yī) is flat, 四 (sì) falls, 五 (wǔ) dips. 和 (hé) means \"and\".",
+      ex: [
+        { hz: "一、二、三。", py: "yī, èr, sān.", t: [1,4,1], en: "One, two, three." },
+        { hz: "四和五。", py: "sì hé wǔ.", t: [4,2,3], en: "Four and five." },
+      ]},
+    dialog: [
+      { who: "A", hz: "一、二、三……", py: "yī, èr, sān…", t: [1,4,1], en: "One, two, three…" },
+      { who: "B", hz: "四、五！", py: "sì, wǔ!", t: [4,3], en: "Four, five!" },
+      { who: "A", hz: "很好！", py: "hěn hǎo!", t: [3,3], en: "Very good!" },
+    ]},
+  { title: "How many?",
+    grammar: { name: "How many: 几个", pattern: "几个？ — number + 个",
+      explain: "几 (jǐ) asks \"how many\" for small numbers, and 个 (ge) is the all-purpose counter that goes after numbers: 六个 = six (of something).",
+      ex: [
+        { hz: "几个？", py: "jǐ ge?", t: [3,5], en: "How many?" },
+        { hz: "十个。", py: "shí ge.", t: [2,5], en: "Ten." },
+      ]},
+    dialog: [
+      { who: "A", hz: "你要几个？", py: "nǐ yào jǐ ge?", t: [3,4,3,5], en: "How many do you want?" },
+      { who: "B", hz: "六个，谢谢。", py: "liù ge, xiè xie.", t: [4,5,4,5], en: "Six, thanks." },
+      { who: "A", hz: "好的。", py: "hǎo de.", t: [3,5], en: "Okay." },
+    ]},
+  { title: "My family",
+    grammar: { name: "Possession with 的", pattern: "我的… my · 你的… your",
+      explain: "的 (de) links an owner to a thing: 我的妈妈 = my mom, 你的爸爸 = your dad. 这是… means \"this is…\" — perfect for introducing people.",
+      ex: [
+        { hz: "我的妈妈。", py: "wǒ de mā ma.", t: [3,5,1,5], en: "My mom." },
+        { hz: "这是你的爸爸吗？", py: "zhè shì nǐ de bà ba ma?", t: [4,4,3,5,4,5,5], en: "Is this your dad?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "这是我的妈妈。", py: "zhè shì wǒ de mā ma.", t: [4,4,3,5,1,5], en: "This is my mom." },
+      { who: "B", hz: "你好！", py: "nǐ hǎo!", t: [3,3], en: "Hello!" },
+      { who: "A", hz: "这是我的哥哥。", py: "zhè shì wǒ de gē ge.", t: [4,4,3,5,1,5], en: "This is my older brother." },
+      { who: "B", hz: "你们好！", py: "nǐ men hǎo!", t: [3,5,3], en: "Hello, both of you!" },
+    ]},
+  { title: "Having things",
+    grammar: { name: "Having things: 有", pattern: "我有… I have · 我没有… I don't have",
+      explain: "有 (yǒu) = to have. Negate it with 没 (méi), never 不: 我没有 = I don't have. 很多 (hěn duō) = many.",
+      ex: [
+        { hz: "我有一个朋友。", py: "wǒ yǒu yí ge péng you.", t: [3,3,2,5,2,5], en: "I have a friend." },
+        { hz: "你有女儿吗？", py: "nǐ yǒu nǚ ér ma?", t: [3,3,3,2,5], en: "Do you have a daughter?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "你有朋友吗？", py: "nǐ yǒu péng you ma?", t: [3,3,2,5,5], en: "Do you have friends?" },
+      { who: "B", hz: "有，我有很多朋友。", py: "yǒu, wǒ yǒu hěn duō péng you.", t: [3,3,3,3,1,2,5], en: "Yes, I have many friends." },
+      { who: "A", hz: "太好了！", py: "tài hǎo le!", t: [4,3,5], en: "Great!" },
+    ]},
+  { title: "Ordering food",
+    grammar: { name: "I want: 我要", pattern: "我要… · 你要…吗？",
+      explain: "要 (yào) = to want. 我要米饭 = I want rice — that's a complete, polite order in a restaurant. Ask what someone wants with 你要什么？",
+      ex: [
+        { hz: "我要米饭。", py: "wǒ yào mǐ fàn.", t: [3,4,3,4], en: "I want rice." },
+        { hz: "你要茶吗？", py: "nǐ yào chá ma?", t: [3,4,2,5], en: "Do you want tea?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "你要什么？", py: "nǐ yào shén me?", t: [3,4,2,5], en: "What do you want?" },
+      { who: "B", hz: "我要面条和茶。", py: "wǒ yào miàn tiáo hé chá.", t: [3,4,4,2,2,2], en: "I want noodles and tea." },
+      { who: "A", hz: "好的。", py: "hǎo de.", t: [3,5], en: "Okay." },
+    ]},
+  { title: "How much?",
+    grammar: { name: "Asking the price", pattern: "…多少钱？ — number + 块",
+      explain: "多少钱 (duōshao qián) = how much money? Answer with a number + 块 (kuài), the spoken word for yuan. Use 两 (liǎng), not 二, before 个: 两个 = two of them.",
+      ex: [
+        { hz: "苹果多少钱？", py: "píng guǒ duō shao qián?", t: [2,3,1,5,2], en: "How much are the apples?" },
+        { hz: "很好吃！", py: "hěn hǎo chī!", t: [3,3,1], en: "Very tasty!" },
+      ]},
+    dialog: [
+      { who: "A", hz: "苹果多少钱？", py: "píng guǒ duō shao qián?", t: [2,3,1,5,2], en: "How much are the apples?" },
+      { who: "B", hz: "三块。", py: "sān kuài.", t: [1,4], en: "Three kuai." },
+      { who: "A", hz: "我要两个。", py: "wǒ yào liǎng ge.", t: [3,4,3,5], en: "I'll take two." },
+      { who: "B", hz: "好的，谢谢！", py: "hǎo de, xiè xie!", t: [3,5,4,5], en: "Okay, thanks!" },
+    ]},
+  { title: "Days of the week",
+    grammar: { name: "What day: 星期几", pattern: "今天星期几？ — 今天星期…",
+      explain: "Weekdays are 星期 + number: 星期一 = Monday, 星期三 = Wednesday. Ask which day with 星期几. No verb needed: 今天星期一 = today (is) Monday.",
+      ex: [
+        { hz: "今天星期一。", py: "jīn tiān xīng qī yī.", t: [1,1,1,1,1], en: "Today is Monday." },
+        { hz: "明天星期几？", py: "míng tiān xīng qī jǐ?", t: [2,1,1,1,3], en: "What day is tomorrow?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "今天星期几？", py: "jīn tiān xīng qī jǐ?", t: [1,1,1,1,3], en: "What day is it today?" },
+      { who: "B", hz: "今天星期三。", py: "jīn tiān xīng qī sān.", t: [1,1,1,1,1], en: "It's Wednesday." },
+      { who: "A", hz: "好，明天见！", py: "hǎo, míng tiān jiàn!", t: [3,2,1,4], en: "Okay, see you tomorrow!" },
+    ]},
+  { title: "What time is it?",
+    grammar: { name: "Telling the time", pattern: "现在几点？ — 现在…点",
+      explain: "点 (diǎn) = o'clock. Ask the time with 现在几点？ (now how-many o'clock?) and answer number + 点: 三点 = 3 o'clock.",
+      ex: [
+        { hz: "现在几点？", py: "xiàn zài jǐ diǎn?", t: [4,4,3,3], en: "What time is it now?" },
+        { hz: "现在三点。", py: "xiàn zài sān diǎn.", t: [4,4,1,3], en: "It's three o'clock." },
+      ]},
+    dialog: [
+      { who: "A", hz: "现在几点？", py: "xiàn zài jǐ diǎn?", t: [4,4,3,3], en: "What time is it?" },
+      { who: "B", hz: "现在五点。", py: "xiàn zài wǔ diǎn.", t: [4,4,3,3], en: "It's five o'clock." },
+      { who: "A", hz: "谢谢！", py: "xiè xie!", t: [4,5], en: "Thanks!" },
+    ]},
+  { title: "Nice to meet you",
+    grammar: { name: "Introducing yourself", pattern: "我叫… my name is · 我是… I am",
+      explain: "我叫 + name for your name; 我是 + description for what you are. 你呢？ = \"and you?\" — bounce any question back. (Swap 美国人 for 英国人 Yīngguó rén if you're British!)",
+      ex: [
+        { hz: "我叫丹尼尔。", py: "wǒ jiào Dān ní ěr.", t: [3,4,1,2,3], en: "My name is Daniel." },
+        { hz: "我是美国人。", py: "wǒ shì měi guó rén.", t: [3,4,3,2,2], en: "I'm American." },
+      ]},
+    dialog: [
+      { who: "A", hz: "你叫什么名字？", py: "nǐ jiào shén me míng zi?", t: [3,4,2,5,2,5], en: "What's your name?" },
+      { who: "B", hz: "我叫丹尼尔，你呢？", py: "wǒ jiào Dān ní ěr, nǐ ne?", t: [3,4,1,2,3,3,5], en: "I'm Daniel — and you?" },
+      { who: "A", hz: "我叫小明。", py: "wǒ jiào Xiǎo míng.", t: [3,4,3,2], en: "I'm Xiaoming." },
+    ]},
+  { title: "Saying no",
+    grammar: { name: "Saying no with 不", pattern: "是 → 不是 · 好 → 不好",
+      explain: "不 (bù) before a verb or adjective negates it. Tone tip: 不 becomes rising (bú) before a falling tone — 不是 bú shì. 请问 (qǐngwèn) = \"excuse me\" before a question.",
+      ex: [
+        { hz: "我不是中国人。", py: "wǒ bú shì Zhōng guó rén.", t: [3,2,4,1,2,2], en: "I'm not Chinese." },
+        { hz: "厕所在哪里？", py: "cè suǒ zài nǎ lǐ?", t: [4,3,4,3,3], en: "Where is the toilet?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "请问，厕所在哪里？", py: "qǐng wèn, cè suǒ zài nǎ lǐ?", t: [3,4,4,3,4,3,3], en: "Excuse me, where's the toilet?" },
+      { who: "B", hz: "在那里。", py: "zài nà lǐ.", t: [4,4,3], en: "Over there." },
+      { who: "A", hz: "谢谢你的帮助！", py: "xiè xie nǐ de bāng zhù!", t: [4,5,3,5,1,4], en: "Thanks for your help!" },
+    ]},
+  { title: "We, you, they",
+    grammar: { name: "Plurals with 们", pattern: "我们 we · 你们 you all · 他们 they",
+      explain: "Add 们 (men) to a pronoun to make it plural. 谁 (shéi) = who: 他是谁？ = who is he?",
+      ex: [
+        { hz: "我们是朋友。", py: "wǒ men shì péng you.", t: [3,5,4,2,5], en: "We are friends." },
+        { hz: "他们很好。", py: "tā men hěn hǎo.", t: [1,5,3,3], en: "They are fine." },
+      ]},
+    dialog: [
+      { who: "A", hz: "他是谁？", py: "tā shì shéi?", t: [1,4,2], en: "Who is he?" },
+      { who: "B", hz: "他是我的朋友。", py: "tā shì wǒ de péng you.", t: [1,4,3,5,2,5], en: "He's my friend." },
+      { who: "A", hz: "你们好！", py: "nǐ men hǎo!", t: [3,5,3], en: "Hello, you two!" },
+    ]},
+  { title: "What is this?",
+    grammar: { name: "Question words stay put", pattern: "这是什么？ · 那是谁的？",
+      explain: "In Mandarin, question words sit exactly where the answer would: 这是什么？ (this is WHAT?) → 这是咖啡 (this is coffee). No word-order gymnastics.",
+      ex: [
+        { hz: "这是什么？", py: "zhè shì shén me?", t: [4,4,2,5], en: "What is this?" },
+        { hz: "那是谁的？", py: "nà shì shéi de?", t: [4,4,2,5], en: "Whose is that?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "这是什么？", py: "zhè shì shén me?", t: [4,4,2,5], en: "What's this?" },
+      { who: "B", hz: "这是咖啡。", py: "zhè shì kā fēi.", t: [4,4,1,1], en: "It's coffee." },
+      { who: "A", hz: "谁的咖啡？", py: "shéi de kā fēi?", t: [2,5,1,1], en: "Whose coffee?" },
+      { who: "B", hz: "我的！", py: "wǒ de!", t: [3,5], en: "Mine!" },
+    ]},
+  { title: "Making sentences",
+    grammar: { name: "Subject–Verb–Object", pattern: "我 吃 米饭。 = I eat rice.",
+      explain: "Mandarin sentences are Subject + Verb + Object, just like English — and verbs NEVER conjugate. 我吃, 你吃, 他吃: always just 吃. 吧 (ba) softens a suggestion: 我们去吧 = let's go.",
+      ex: [
+        { hz: "我吃米饭。", py: "wǒ chī mǐ fàn.", t: [3,1,3,4], en: "I eat rice." },
+        { hz: "你去哪里？", py: "nǐ qù nǎ lǐ?", t: [3,4,3,3], en: "Where are you going?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "你去哪里？", py: "nǐ qù nǎ lǐ?", t: [3,4,3,3], en: "Where are you going?" },
+      { who: "B", hz: "我去商店，你来吗？", py: "wǒ qù shāng diàn, nǐ lái ma?", t: [3,4,1,4,3,2,5], en: "To the shop — coming?" },
+      { who: "A", hz: "好，我们去吧！", py: "hǎo, wǒ men qù ba!", t: [3,3,5,4,5], en: "Okay, let's go!" },
+    ]},
+  { title: "Shopping talk",
+    grammar: { name: "Verb + 什么", pattern: "你买什么？ · 你说什么？",
+      explain: "Put 什么 (what) right after the verb to ask about the object: 你买什么？ = you buy WHAT? Works with any verb: 吃什么, 喝什么, 看什么…",
+      ex: [
+        { hz: "你说什么？", py: "nǐ shuō shén me?", t: [3,1,2,5], en: "What did you say?" },
+        { hz: "我买苹果。", py: "wǒ mǎi píng guǒ.", t: [3,3,2,3], en: "I'm buying apples." },
+      ]},
+    dialog: [
+      { who: "A", hz: "你买什么？", py: "nǐ mǎi shén me?", t: [3,3,2,5], en: "What are you buying?" },
+      { who: "B", hz: "我买鸡蛋和米饭。", py: "wǒ mǎi jī dàn hé mǐ fàn.", t: [3,3,1,4,2,3,4], en: "Eggs and rice." },
+      { who: "A", hz: "多少钱？", py: "duō shao qián?", t: [1,5,2], en: "How much?" },
+      { who: "B", hz: "十块。", py: "shí kuài.", t: [2,4], en: "Ten kuai." },
+    ]},
+  { title: "Describing things",
+    grammar: { name: "很 + adjective (no 是!)", pattern: "我很好。 ✓ — 我是好。 ✗",
+      explain: "Adjectives connect with 很 (hěn), not 是: 中国很大 = China is big. Using 是 with a bare adjective is the classic beginner mistake — 很 here barely means \"very\", it's just the glue.",
+      ex: [
+        { hz: "中国很大。", py: "Zhōng guó hěn dà.", t: [1,2,3,4], en: "China is big." },
+        { hz: "我的家很小。", py: "wǒ de jiā hěn xiǎo.", t: [3,5,1,3,3], en: "My home is small." },
+      ]},
+    dialog: [
+      { who: "A", hz: "你的学校大吗？", py: "nǐ de xué xiào dà ma?", t: [3,5,2,4,4,5], en: "Is your school big?" },
+      { who: "B", hz: "很大，人很多。", py: "hěn dà, rén hěn duō.", t: [3,4,2,3,1], en: "Very big — lots of people." },
+      { who: "A", hz: "太好了！", py: "tài hǎo le!", t: [4,3,5], en: "Great!" },
+    ]},
+  { title: "Too hot!",
+    grammar: { name: "Too much: 太…了", pattern: "太热了！ · 太好了！",
+      explain: "Wrap an adjective in 太…了 (tài…le) for \"too/so …!\": 太热了 = it's so hot! 一点 (yìdiǎn) = a little: 慢一点 = a bit slower.",
+      ex: [
+        { hz: "今天太热了！", py: "jīn tiān tài rè le!", t: [1,1,4,4,5], en: "It's so hot today!" },
+        { hz: "请说慢一点。", py: "qǐng shuō màn yì diǎn.", t: [3,1,4,4,3], en: "Please speak a bit slower." },
+      ]},
+    dialog: [
+      { who: "A", hz: "今天热吗？", py: "jīn tiān rè ma?", t: [1,1,4,5], en: "Is it hot today?" },
+      { who: "B", hz: "太热了！你要水吗？", py: "tài rè le! nǐ yào shuǐ ma?", t: [4,4,5,3,4,3,5], en: "So hot! Want some water?" },
+      { who: "A", hz: "要，谢谢！", py: "yào, xiè xie!", t: [4,4,5], en: "Yes please, thanks!" },
+    ]},
+  { title: "Where are you?",
+    grammar: { name: "Location with 在", pattern: "我在北京。 · …在哪里？",
+      explain: "在 (zài) = to be at/in. 我在学校 = I'm at school. Ask where anything is with …在哪里？ — it works for people, places and things.",
+      ex: [
+        { hz: "我在北京。", py: "wǒ zài Běi jīng.", t: [3,4,3,1], en: "I'm in Beijing." },
+        { hz: "医院在哪里？", py: "yī yuàn zài nǎ lǐ?", t: [1,4,4,3,3], en: "Where is the hospital?" },
+      ]},
+    dialog: [
+      { who: "A", hz: "你在哪里？", py: "nǐ zài nǎ lǐ?", t: [3,4,3,3], en: "Where are you?" },
+      { who: "B", hz: "我在学校，你呢？", py: "wǒ zài xué xiào, nǐ ne?", t: [3,4,2,4,3,5], en: "At school — you?" },
+      { who: "A", hz: "我在商店。", py: "wǒ zài shāng diàn.", t: [3,4,1,4], en: "I'm at the shop." },
+    ]},
+  { title: "Getting around",
+    grammar: { name: "Taking transport: 坐", pattern: "坐出租车 · 坐飞机去…",
+      explain: "坐 (zuò, literally \"sit\") is how you take transport: 坐飞机 = by plane, 坐出租车 = by taxi. Chain it with 去: 我坐飞机去中国 = I'm going to China by plane.",
+      ex: [
+        { hz: "我坐出租车。", py: "wǒ zuò chū zū chē.", t: [3,4,1,1,1], en: "I'll take a taxi." },
+        { hz: "我坐飞机去中国。", py: "wǒ zuò fēi jī qù Zhōng guó.", t: [3,4,1,1,4,1,2], en: "I'm flying to China." },
+      ]},
+    dialog: [
+      { who: "A", hz: "火车站在哪里？", py: "huǒ chē zhàn zài nǎ lǐ?", t: [3,1,4,4,3,3], en: "Where's the train station?" },
+      { who: "B", hz: "很远，坐出租车吧。", py: "hěn yuǎn, zuò chū zū chē ba.", t: [3,3,4,1,1,1,5], en: "Far away — take a taxi." },
+      { who: "A", hz: "好的，谢谢！", py: "hǎo de, xiè xie!", t: [3,5,4,5], en: "Okay, thanks!" },
     ]},
 ];
 
@@ -790,22 +1052,33 @@ function unlockedDay() {
   return Math.floor((new Date(new Date().toDateString()) - new Date(store.daily.startDate)) / 86400000) + 1;
 }
 function taskState(n) {
-  if (!store.daily.tasks[n]) store.daily.tasks[n] = { quiz: false, speak: {}, type: {} };
+  if (!store.daily.tasks[n]) store.daily.tasks[n] = { quiz: false, speak: {}, type: {}, sent: {}, grammar: false, dialog: false };
   const t = store.daily.tasks[n];
-  t.type = t.type || {};   // upgrade older saves
+  t.type = t.type || {}; t.sent = t.sent || {}; t.speak = t.speak || {};   // upgrade older saves
   return t;
+}
+/* the 2 sentences you must speak each day (from the day's grammar; random past ones on review days) */
+function getDaySentences(n) {
+  if (n <= NEW_DAYS) return CURRICULUM[n - 1].grammar.ex;
+  const all = CURRICULUM.flatMap(c => c.grammar.ex);
+  const rnd = mulberry32(n * 104729);
+  return [...all].sort(() => rnd() - 0.5).slice(0, 2);
 }
 function dayStatus(n) {
   const words = dayWords(n);
   const t = taskState(n);
+  const review = n > NEW_DAYS;
   const study = words.every(w => isLearned(w.lesson, w.idx));
-  const speakNeed = Math.min(3, words.length);
   const typeNeed = Math.min(3, words.length);
-  const speakCount = Object.keys(t.speak).length;
   const typeCount = Object.keys(t.type).length;
-  const complete = study && t.quiz && speakCount >= speakNeed && typeCount >= typeNeed;
+  const sentNeed = 2;
+  const sentCount = Object.keys(t.sent).length;
+  const grammarDone = review || t.grammar;
+  const dialogDone = review || t.dialog;
+  const complete = study && t.quiz && typeCount >= typeNeed && sentCount >= sentNeed && grammarDone && dialogDone;
   if (complete && !store.daily.completed[n]) { store.daily.completed[n] = true; saveStore(); }
-  return { study, quiz: t.quiz, speakCount, speakNeed, typeCount, typeNeed, complete };
+  return { study, quiz: t.quiz, typeCount, typeNeed, sentCount, sentNeed,
+           grammar: t.grammar, dialog: t.dialog, complete };
 }
 
 let viewingDay = null;
@@ -839,14 +1112,30 @@ function renderDaily() {
   const words = dayWords(n);
   const st = dayStatus(n);
   const review = n > NEW_DAYS;
+  const cur = review ? null : CURRICULUM[n - 1];
+  const tasks = [
+    { done: st.study, label: 'Study the new words — listen 🔊 and mark each ✓' },
+    ...(cur ? [
+      { done: st.grammar, label: 'Learn the grammar pattern below',
+        btn: st.grammar ? '' : `<button class="btn ghost" onclick="markGrammar(${n})">Got it ✓</button>` },
+      { done: st.dialog, label: 'Play the dialogue, then act out both parts aloud',
+        btn: st.dialog ? '' : `<button class="btn ghost" onclick="markDialog(${n})">I practiced it ✓</button>` },
+    ] : []),
+    { done: st.sentCount >= st.sentNeed, label: `Speak ${st.sentNeed} full sentences at 60%+ (${st.sentCount}/${st.sentNeed})`,
+      btn: `<button class="btn ghost" onclick="startDailySpeak(${n})">Practice</button>` },
+    { done: st.quiz, label: 'Pass the mini-quiz (80%+)',
+      btn: `<button class="btn ghost" onclick="startDailyQuiz(${n})">Start quiz</button>` },
+    { done: st.typeCount >= st.typeNeed, label: `Type the pinyin (with tones) for ${st.typeNeed} words (${st.typeCount}/${st.typeNeed})`,
+      btn: `<button class="btn ghost" onclick="startDailyType(${n})">Practice</button>` },
+  ];
   area.innerHTML = `
     <div class="day-card">
       <div class="day-head">
-        <h3>${review ? '🔁 Day ' + n + ' — Review' : '📖 Day ' + n + ' of ' + NEW_DAYS}</h3>
+        <h3>${review ? '🔁 Day ' + n + ' — Review' : '📖 Day ' + n + ' of ' + NEW_DAYS + ' — ' + cur.title}</h3>
         <span class="badge ${st.complete ? 'done' : ''}">${st.complete ? '✓ Complete' : 'In progress'}</span>
         ${dayNav(n, unlocked)}
       </div>
-      <p class="sub">${review ? 'Review day — revisit ' + words.length + ' words from past lessons.' : "Today's " + words.length + " new words:"}</p>
+      <p class="sub">${review ? 'Review day — revisit ' + words.length + ' words and speak 2 sentences from past lessons.' : "Today's " + words.length + " new words:"}</p>
       ${words.map(w => `
         <div class="word-row">
           <div class="hanzi">${w.hz}</div>
@@ -859,19 +1148,55 @@ function renderDaily() {
             <button class="icon-btn ${isLearned(w.lesson, w.idx) ? 'learned' : ''}" onclick="toggleLearned('${w.lesson}',${w.idx});renderDaily()" title="Mark learned">✓</button>
           </div>
         </div>`).join('')}
-      <div class="task-row ${st.study ? 'done' : ''}"><span class="tick">${st.study ? '✓' : '1'}</span>
-        <span class="t-label">Study all words — listen 🔊 and mark each ✓</span></div>
-      <div class="task-row ${st.quiz ? 'done' : ''}"><span class="tick">${st.quiz ? '✓' : '2'}</span>
-        <span class="t-label">Pass the mini-quiz (80%+)</span>
-        <button class="btn ghost" onclick="startDailyQuiz(${n})">Start quiz</button></div>
-      <div class="task-row ${st.speakCount >= st.speakNeed ? 'done' : ''}"><span class="tick">${st.speakCount >= st.speakNeed ? '✓' : '3'}</span>
-        <span class="t-label">Pronounce ${st.speakNeed} words at 60%+ (${st.speakCount}/${st.speakNeed})</span>
-        <button class="btn ghost" onclick="startDailySpeak(${n})">Practice</button></div>
-      <div class="task-row ${st.typeCount >= st.typeNeed ? 'done' : ''}"><span class="tick">${st.typeCount >= st.typeNeed ? '✓' : '4'}</span>
-        <span class="t-label">Type the pinyin (with tones) for ${st.typeNeed} words (${st.typeCount}/${st.typeNeed})</span>
-        <button class="btn ghost" onclick="startDailyType(${n})">Practice</button></div>
+      ${cur ? `
+      <h3 style="margin:24px 0 8px">📐 Grammar: ${cur.grammar.name}</h3>
+      <div class="gram-card">
+        <div class="gram-pattern">${cur.grammar.pattern}</div>
+        <p class="gram-explain">${cur.grammar.explain}</p>
+        ${cur.grammar.ex.map(s => sentRow(s)).join('')}
+      </div>
+      <h3 style="margin:24px 0 8px">💬 Dialogue</h3>
+      <div class="gram-card">
+        <p class="gram-explain">Play it, listen, then act out both parts out loud — this is the fluency muscle.</p>
+        <p><button class="btn" onclick="playDialog(${n})">▶ Play dialogue</button></p>
+        ${cur.dialog.map(l => `
+          <div class="dlg-line">
+            <span class="who ${l.who === 'A' ? 'a' : 'b'}">${l.who}</span>
+            <div class="info">
+              <div class="hz">${l.hz}</div>
+              <div class="pinyin" style="font-size:15px">${colorPinyin(l.py, l.t)}</div>
+              <div class="en" style="color:var(--muted);font-size:13px">${l.en}</div>
+            </div>
+            <button class="icon-btn" onclick="speak('${l.hz}')" title="Listen">🔊</button>
+          </div>`).join('')}
+      </div>` : ''}
+      <h3 style="margin:24px 0 2px">✅ Today's tasks</h3>
+      ${tasks.map((tk, i) => `
+      <div class="task-row ${tk.done ? 'done' : ''}"><span class="tick">${tk.done ? '✓' : i + 1}</span>
+        <span class="t-label">${tk.label}</span>${tk.btn || ''}</div>`).join('')}
       ${st.complete ? `<p style="text-align:center;margin:18px 0 4px">🎉 Day ${n} complete! ${n < unlocked ? `<button class="btn" onclick="viewingDay=${n + 1};renderDaily()">Next day →</button>` : 'See you tomorrow — 明天见 (míngtiān jiàn)!'}</p>` : ''}
     </div>`;
+}
+function sentRow(s) {
+  return `<div class="dlg-line"><div class="info">
+    <div class="hz">${s.hz}</div>
+    <div class="pinyin" style="font-size:15px">${colorPinyin(s.py, s.t)}</div>
+    <div class="en" style="color:var(--muted);font-size:13px">${s.en}</div>
+  </div><button class="icon-btn" onclick="speak('${s.hz}')" title="Listen">🔊</button></div>`;
+}
+function markGrammar(n) { taskState(n).grammar = true; saveStore(); renderDaily(); }
+function markDialog(n) { taskState(n).dialog = true; saveStore(); renderDaily(); }
+function playDialog(n) {
+  const lines = CURRICULUM[n - 1].dialog;
+  let i = 0;
+  const next = () => {
+    if (i >= lines.length) return;
+    const hz = lines[i].hz;
+    speak(hz);
+    i++;
+    setTimeout(next, 1100 + normHz(hz).length * 420);
+  };
+  next();
 }
 function dayNav(n, unlocked) {
   return `<span class="day-nav">
@@ -922,8 +1247,8 @@ function startDailySpeak(n) {
 }
 function nextDailySpeakTarget() {
   const t = taskState(speakDay);
-  const words = dayWords(speakDay);
-  speakTarget = words.find(w => !t.speak[w.hz]) || words[0];
+  const sents = getDaySentences(speakDay);
+  speakTarget = sents.find(s => !t.sent[s.hz]) || sents[0];
   speakResult = null; speakError = null; lastAudioURL = null; speakState = 'idle';
   renderSpeakCard();
 }
@@ -932,9 +1257,9 @@ function renderSpeakBanner() {
   const b = document.getElementById('speakBanner');
   if (speakDay == null) { b.innerHTML = ''; return; }
   const st = dayStatus(speakDay);
-  b.innerHTML = `<div class="exam-box">🎯 Daily task — pronounce ${st.speakNeed} words at 60%+:
-    <b class="left">${st.speakCount}/${st.speakNeed}</b>
-    ${st.speakCount >= st.speakNeed ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>` : ''}</div>`;
+  b.innerHTML = `<div class="exam-box">🎯 Daily task — speak ${st.sentNeed} full sentences at 60%+:
+    <b class="left">${st.sentCount}/${st.sentNeed}</b>
+    ${st.sentCount >= st.sentNeed ? `<button class="btn" onclick="showView('daily')">← Back to daily lesson</button>` : ''}</div>`;
 }
 
 function renderSpeakCard() {
@@ -964,8 +1289,8 @@ function renderSpeakCard() {
   }
   area.innerHTML = `
     <div class="speak-card">
-      <div class="big">${w.hz}</div>
-      <div style="font-size:24px;font-weight:700;margin-top:4px">${colorPinyin(w.py, w.t)}</div>
+      <div class="big" style="${normHz(w.hz).length > 4 ? 'font-size:36px' : ''}">${w.hz}</div>
+      <div style="font-size:${normHz(w.hz).length > 4 ? 18 : 24}px;font-weight:700;margin-top:4px">${colorPinyin(w.py, w.t)}</div>
       <div style="color:var(--muted)">${w.en}</div>
       <p style="margin:18px 0 8px">
         <button class="btn ghost" onclick="speak('${w.hz}')">🔊 Listen</button>
@@ -976,7 +1301,7 @@ function renderSpeakCard() {
       ${resultHtml}
       ${window.self !== window.top && !speakResult && !speakError && speakState === 'idle' ? `<p class="heard">ℹ️ Viewing inside an embedded preview? Mic prompts are often blocked there — open the app in a normal browser tab for recording.</p>` : ''}
       ${best != null ? `<p class="heard">Best score for this word: <b>${best}%</b></p>` : ''}
-      ${speakDay != null ? `<p><button class="btn ghost" onclick="nextDailySpeakTarget()">Next word ↷</button></p>` : ''}
+      ${speakDay != null ? `<p><button class="btn ghost" onclick="nextDailySpeakTarget()">Next sentence ↷</button></p>` : ''}
     </div>`;
 }
 
@@ -1063,7 +1388,9 @@ async function whisperAttempt() {
     renderSpeakCard();
     return;
   }
-  await new Promise(r => setTimeout(r, 3200));   // fixed 3-second take
+  // recording window scales with sentence length
+  const ms = Math.min(8000, 2200 + normHz(speakTarget.hz).length * 450);
+  await new Promise(r => setTimeout(r, ms));
   const blob = await stopRecorderGetBlob();
   if (!blob || blob.size < 1000) {
     speakState = 'idle'; speakErrCode = 'no-speech';
@@ -1185,7 +1512,7 @@ function gradeAttempt(alts) {
   speakState = 'idle';
   speakResult = { score: best.score, text: best.text, marks: markChars(normHz(best.text)) };
   if ((store.speakScores[speakTarget.hz] || 0) < best.score) store.speakScores[speakTarget.hz] = best.score;
-  if (speakDay != null && best.score >= 60) taskState(speakDay).speak[speakTarget.hz] = true;
+  if (speakDay != null && best.score >= 60) taskState(speakDay).sent[speakTarget.hz] = true;
   saveStore();
   renderSpeakCard();
   renderSpeakChips();
