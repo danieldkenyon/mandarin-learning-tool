@@ -212,6 +212,20 @@
     text-align: center; font-family: inherit; outline: none;
   }
   .type-input:focus { border-color: var(--accent); }
+  .kb { margin-top: 14px; user-select: none; }
+  .kb-row { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+  .kb-key {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; min-width: 34px; padding: 10px 4px; font-size: 15px; cursor: pointer;
+    font-family: inherit; transition: .1s;
+  }
+  .kb-key:hover { border-color: var(--accent); }
+  .kb-key:active { transform: scale(.94); }
+  .kb-tone { font-weight: 700; min-width: 46px; }
+  .kb-tone span { opacity: .85; margin-left: 3px; }
+  .kb-wide { flex: 1; max-width: 220px; }
+  .kb-check { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; padding-left: 14px; padding-right: 14px; }
+  @media (max-width: 520px) { .kb-key { min-width: 26px; font-size: 13px; padding: 8px 2px; } .kb-tone { min-width: 38px; } }
 
 </style>
 </head>
@@ -1225,12 +1239,36 @@ function renderType() {
         <button class="icon-btn" onclick="speak('${w.hz}')" title="Listen">🔊</button></div>
       <p><input id="typeInput" class="type-input" autocomplete="off" spellcheck="false"
         placeholder="e.g. ni3 hao3" onkeydown="if(event.key==='Enter')submitType()"></p>
-      <p><button class="btn" onclick="submitType()">Check</button></p>
+      ${kbHtml()}
       <div id="typeFeedback"></div>
     </div>
     <div class="quiz-score">Word ${typePos + 1} / ${typeDeck.length}</div>`;
   document.getElementById('typeInput').focus();
 }
+/* on-screen pinyin keyboard: letters, ü, tone numbers 1–5, space/⌫/check */
+function kbHtml() {
+  const toneMarks = { 1: 'ˉ', 2: 'ˊ', 3: 'ˇ', 4: 'ˋ', 5: '·' };
+  const key = (label, val, cls = '') =>
+    `<button class="kb-key ${cls}" onmousedown="event.preventDefault()" onclick="kbKey('${val}')">${label}</button>`;
+  const row = s => s.split('').map(c => key(c, c)).join('');
+  const tones = [1, 2, 3, 4, 5].map(t => key(`${t}<span>${toneMarks[t]}</span>`, t, `kb-tone tone${t}`)).join('');
+  return `<div class="kb">
+    <div class="kb-row">${tones}</div>
+    <div class="kb-row">${row('qwertyuiop')}</div>
+    <div class="kb-row">${row('asdfghjkl')}</div>
+    <div class="kb-row">${row('zxcvbnm')}${key('ü', 'ü')}</div>
+    <div class="kb-row">${key('space', ' ', 'kb-wide')}${key('⌫', 'back')}${key('✓ Check', 'enter', 'kb-check')}</div>
+  </div>`;
+}
+function kbKey(k) {
+  const inp = document.getElementById('typeInput');
+  if (!inp) return;
+  if (k === 'enter') return submitType();
+  if (k === 'back') inp.value = inp.value.slice(0, -1);
+  else inp.value += k;
+  inp.focus();
+}
+
 /* tone-marked pinyin → bare letters (ü becomes v) for comparison */
 function pyBase(py) {
   return py.toLowerCase().normalize('NFD')
