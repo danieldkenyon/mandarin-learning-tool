@@ -211,6 +211,14 @@
   .char-marks .ok { color:var(--green); }
   .char-marks .miss { color:var(--accent); }
   .heard { color:var(--muted); font-size:14px; margin-top:6px; }
+  .coach { margin: 14px auto 0; text-align: left; max-width: 480px; }
+  .coach-row { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin-top: 6px; font-size: 13px; }
+  .coach-row .c-hz { font-size: 22px; flex: 0 0 26px; }
+  .coach-row .c-py { font-weight: 700; flex: 0 0 52px; }
+  .coach-row .c-tone { flex: 0 0 128px; font-weight: 600; }
+  .coach-row .c-tip { color: var(--muted); flex: 1; }
+  .coach-row.ok { opacity: .7; }
+  .coach-row.ok .c-tip { color: var(--green); }
 
   footer { text-align:center; color: var(--muted); font-size: 12px; padding: 30px; }
   .empty { color: var(--muted); text-align: center; padding: 40px; }
@@ -1285,7 +1293,8 @@ function renderSpeakCard() {
       <div class="score-big" style="color:${r.score >= 80 ? 'var(--green)' : r.score >= 60 ? 'var(--accent-2)' : 'var(--accent)'}">${r.score}%</div>
       <div class="score-bar"><span style="width:${r.score}%"></span></div>
       <div class="char-marks">${r.marks}</div>
-      <p class="heard">Heard: “${r.text || '…nothing'}” · ${r.score >= 80 ? 'Excellent! 太好了 (tài hǎo le)!' : r.score >= 60 ? 'Good — keep polishing the tones.' : 'Listen again and retry — slow down each syllable.'}</p>`;
+      <p class="heard">Heard: “${r.text || '…nothing'}” · ${r.score >= 80 ? 'Excellent! 太好了 (tài hǎo le)!' : r.score >= 60 ? 'Good — keep polishing the tones.' : 'Listen again and retry — slow down each syllable.'}</p>
+      ${r.coach || ''}`;
   }
   area.innerHTML = `
     <div class="speak-card">
@@ -1484,7 +1493,11 @@ async function recordOnly() {
   }, 3500);
 }
 
-function normHz(s) { return (s || '').replace(/[^一-鿿]/g, ''); }
+/* Whisper sometimes outputs traditional characters (嗎 for 吗) — map them
+   back to simplified so a correct pronunciation isn't marked wrong. */
+const T2S = { '嗎':'吗','謝':'谢','們':'们','個':'个','這':'这','裡':'里','裏':'里','沒':'没','關':'关','係':'系','見':'见','對':'对','氣':'气','誰':'谁','說':'说','聽':'听','讀':'读','寫':'写','買':'买','飯':'饭','麵':'面','條':'条','雞':'鸡','蘋':'苹','錢':'钱','點':'点','鐘':'钟','時':'时','現':'现','愛':'爱','幫':'帮','廁':'厕','車':'车','銀':'银','機':'机','飛':'飞','學':'学','醫':'医','國':'国','熱':'热','壞':'坏','遠':'远','媽':'妈','兒':'儿','來':'来','幾':'几','兩':'两','塊':'块','請':'请','問':'问','妳':'你','歲':'岁','號':'号','週':'周' };
+function t2s(s) { return [...s].map(c => T2S[c] || c).join(''); }
+function normHz(s) { return t2s(s || '').replace(/[^一-鿿]/g, ''); }
 /* longest common subsequence length — order-aware character overlap */
 function lcsLen(a, b) {
   const dp = Array(b.length + 1).fill(0);
@@ -1502,6 +1515,32 @@ function markChars(recognized) {
   return normHz(speakTarget.hz).split('').map(c =>
     `<span class="${recognized.includes(c) ? 'ok' : 'miss'}">${c}</span>`).join('');
 }
+/* per-character tone coaching shown after every graded attempt */
+const TONE_INFO = {
+  1: { mark: 'ˉ', name: '1st · high & flat', tip: 'hold it high and level, like singing one steady note' },
+  2: { mark: 'ˊ', name: '2nd · rising', tip: 'rise from mid to high, like asking “huh?”' },
+  3: { mark: 'ˇ', name: '3rd · dipping', tip: 'fall low first, then bounce back up' },
+  4: { mark: 'ˋ', name: '4th · falling', tip: 'drop sharply from high, like a firm “No!”' },
+  5: { mark: '·', name: 'neutral', tip: 'short and light — no emphasis at all' },
+};
+function toneCoachHtml(recognized) {
+  const chars = normHz(speakTarget.hz).split('');
+  const syls = speakTarget.py.normalize('NFC')
+    .replace(/[^\p{L}\p{M}ü' ]/gu, '').split(' ').filter(Boolean);
+  const useSyl = syls.length === chars.length;
+  return `<div class="coach">
+    <p class="heard" style="margin:0 0 2px">🎯 Target tones — tap 🔊 Listen and copy the melody:</p>
+    ${chars.map((c, i) => {
+      const ti = TONE_INFO[speakTarget.t[i] || 5];
+      const ok = recognized.includes(c);
+      return `<div class="coach-row ${ok ? 'ok' : ''}">
+        <span class="c-hz">${c}</span>
+        ${useSyl ? `<span class="c-py tone${speakTarget.t[i] || 5}">${syls[i]}</span>` : ''}
+        <span class="c-tone tone${speakTarget.t[i] || 5}">${ti.mark} ${ti.name}</span>
+        <span class="c-tip">${ok ? '✓ got it' : ti.tip}</span>
+      </div>`;
+    }).join('')}</div>`;
+}
 function gradeAttempt(alts) {
   const target = normHz(speakTarget.hz);
   let best = { score: 0, text: alts[0] || '' };
@@ -1510,7 +1549,8 @@ function gradeAttempt(alts) {
     if (s > best.score) best = { score: s, text: t };
   });
   speakState = 'idle';
-  speakResult = { score: best.score, text: best.text, marks: markChars(normHz(best.text)) };
+  speakResult = { score: best.score, text: best.text, marks: markChars(normHz(best.text)),
+                  coach: toneCoachHtml(normHz(best.text)) };
   if ((store.speakScores[speakTarget.hz] || 0) < best.score) store.speakScores[speakTarget.hz] = best.score;
   if (speakDay != null && best.score >= 60) taskState(speakDay).sent[speakTarget.hz] = true;
   saveStore();
